@@ -1,5 +1,7 @@
 package tr.com.srdc.cda2fhir.transform;
 
+import org.hl7.fhir.dstu3.model.Bundle;
+
 /*
  * #%L
  * CDA to FHIR Transformer Library
@@ -20,8 +22,7 @@ package tr.com.srdc.cda2fhir.transform;
  * #L%
  */
 
-import ca.uhn.fhir.model.dstu2.composite.ResourceReferenceDt;
-import ca.uhn.fhir.model.dstu2.resource.Bundle;
+import org.hl7.fhir.dstu3.model.Reference;
 import org.openhealthtools.mdht.uml.cda.ClinicalDocument;
 import tr.com.srdc.cda2fhir.util.IdGeneratorEnum;
 
@@ -30,7 +31,7 @@ public interface ICDATransformer {
      * Returns a ResourceReferenceDt for the patient of the CDA document
      * @return A ResourceReferenceDt that references the patient (i.e. recordTarget/patientRole) of the document
      */
-    ResourceReferenceDt getPatientRef();
+    Reference getPatientRef();
 
     /**
      * A consistent unique resource id generator
