@@ -37,6 +37,7 @@ import org.hl7.fhir.dstu3.model.ContactPoint.ContactPointSystem;
 import org.hl7.fhir.dstu3.model.ContactPoint.ContactPointUse;
 import org.hl7.fhir.dstu3.model.DiagnosticReport.DiagnosticReportStatus;
 import org.hl7.fhir.dstu3.model.Encounter.EncounterStatus;
+import org.hl7.fhir.dstu3.model.Enumerations;
 import org.hl7.fhir.dstu3.model.FamilyMemberHistory.FamilyHistoryStatus;
 import org.hl7.fhir.dstu3.model.Group.GroupType;
 import org.hl7.fhir.dstu3.model.HumanName.NameUse;
@@ -45,7 +46,7 @@ import org.hl7.fhir.dstu3.model.MedicationStatement.MedicationStatementStatus;
 import org.hl7.fhir.dstu3.model.Observation.ObservationStatus;
 import org.hl7.fhir.dstu3.model.Procedure.ProcedureStatus;
 import org.hl7.fhir.dstu3.model.Timing.UnitsOfTime;
-import org.hl7.fhir.dstu3.model.codesystems.AdministrativeGender;
+
 import org.hl7.fhir.dstu3.model.codesystems.AllergyIntoleranceStatus;
 
 import org.openhealthtools.mdht.uml.hl7.datatypes.CD;
@@ -64,17 +65,17 @@ public class ValueSetsTransformerImpl implements IValueSetsTransformer, Serializ
   /**
    * Transforms a CDA Administrative Gender to a FHIR Administrative Gender.
    */
-  public AdministrativeGender transformAdministrativeGenderCode2AdministrativeGender(
+  public Enumerations.AdministrativeGender transformAdministrativeGenderCode2AdministrativeGender(
       String cdaAdministrativeGenderCode) {
     switch (cdaAdministrativeGenderCode.toLowerCase()) {
       case "f":
-        return AdministrativeGender.FEMALE;
+        return Enumerations.AdministrativeGender.FEMALE;
       case "m":
-        return AdministrativeGender.MALE;
+        return Enumerations.AdministrativeGender.MALE;
       case "un":
-        return AdministrativeGender.UNKNOWN;
+        return Enumerations.AdministrativeGender.UNKNOWN;
       default:
-        return AdministrativeGender.UNKNOWN;
+        return Enumerations.AdministrativeGender.UNKNOWN;
     }
   }
 

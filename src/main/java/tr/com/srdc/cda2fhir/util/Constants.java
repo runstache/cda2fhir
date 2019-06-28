@@ -67,5 +67,6 @@ public class Constants {
   public static final String PARTICIPANT_TYPE_SYSTEM = "http://hl7.org/fhir/v3/ParticipationType";
   public static final String CONDITION_CATEGORY_SYSTEM = "http://terminology.hl7.org/CodeSystem/condition-category";
   public static final String CONTACT_RELATIONSHIP_SYSTEM = "http://terminology.hl7.org/CodeSystem/v2-0131";
+  public static final String IMMUNIZATION_PROVIDER_ROLE_SYSTEM = "http://hl7.org/fhir/v2/0443";
 
 }

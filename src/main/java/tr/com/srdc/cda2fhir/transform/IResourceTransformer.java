@@ -191,7 +191,7 @@ public interface IResourceTransformer {
    * @return A FHIR Bundle that contains the Observation as the first entry, which
    *         can also include other referenced resources such as Practitioner
    */
-  Bundle tranfromFunctionalStatus2Observation(
+  Bundle transformFunctionalStatus2Observation(
         org.openhealthtools.mdht.uml.cda.Observation cdaObservation);
 
   /**

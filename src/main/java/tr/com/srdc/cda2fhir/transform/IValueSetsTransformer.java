@@ -13,6 +13,7 @@ import org.hl7.fhir.dstu3.model.ContactPoint.ContactPointSystem;
 import org.hl7.fhir.dstu3.model.ContactPoint.ContactPointUse;
 import org.hl7.fhir.dstu3.model.DiagnosticReport.DiagnosticReportStatus;
 import org.hl7.fhir.dstu3.model.Encounter.EncounterStatus;
+import org.hl7.fhir.dstu3.model.Enumerations;
 import org.hl7.fhir.dstu3.model.FamilyMemberHistory.FamilyHistoryStatus;
 import org.hl7.fhir.dstu3.model.Group.GroupType;
 import org.hl7.fhir.dstu3.model.HumanName.NameUse;
@@ -21,7 +22,6 @@ import org.hl7.fhir.dstu3.model.MedicationStatement.MedicationStatementStatus;
 import org.hl7.fhir.dstu3.model.Observation.ObservationStatus;
 import org.hl7.fhir.dstu3.model.Procedure.ProcedureStatus;
 import org.hl7.fhir.dstu3.model.Timing.UnitsOfTime;
-import org.hl7.fhir.dstu3.model.codesystems.AdministrativeGender;
 import org.hl7.fhir.dstu3.model.codesystems.AllergyIntoleranceStatus;
 
 /*
@@ -65,7 +65,7 @@ public interface IValueSetsTransformer {
    * @param cdaAdministrativeGenderCode A CDA AdministrativeGenderCode string
    * @return A value from the FHIR valueset AdministrativeGender
    */
-  AdministrativeGender transformAdministrativeGenderCode2AdministrativeGender(
+  Enumerations.AdministrativeGender transformAdministrativeGenderCode2AdministrativeGender(
         String cdaAdministrativeGenderCode);
 
   /**
