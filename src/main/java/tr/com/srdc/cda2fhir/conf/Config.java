@@ -75,7 +75,7 @@ public class Config {
   private static final Logger logger = LoggerFactory.getLogger(Config.class);
 
   static {
-    fhirCtx = FhirContext.forDstu2();
+    fhirCtx = FhirContext.forDstu3();
     narrativeGenerator = new CustomThymeleafNarrativeGenerator(NARRATIVE_PROPERTIES_FILE_PATH);
     if (generateNarrative) {
       fhirCtx.setNarrativeGenerator(narrativeGenerator);

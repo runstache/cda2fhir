@@ -499,9 +499,9 @@ public class DataTypesTransformerImpl implements IDataTypesTransformer, Serializ
         && ii.getExtension() != null 
         && !ii.getExtension().isEmpty()) {
       // root is oid
-      if (StringUtil.isOID(ii.getRoot())) {
+      if (StringUtil.isOid(ii.getRoot())) {
         identifier.setSystem("urn:oid:" + ii.getRoot());
-      } else if (StringUtil.isUUID(ii.getRoot())) {
+      } else if (StringUtil.isUuid(ii.getRoot())) {
         // root is uuid
         identifier.setSystem("urn:uuid:" + ii.getRoot());
       } else {

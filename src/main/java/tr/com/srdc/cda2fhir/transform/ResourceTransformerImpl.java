@@ -141,21 +141,10 @@ import org.openhealthtools.mdht.uml.hl7.datatypes.ST;
 import org.openhealthtools.mdht.uml.hl7.datatypes.SXCM_TS;
 import org.openhealthtools.mdht.uml.hl7.datatypes.TEL;
 import org.openhealthtools.mdht.uml.hl7.datatypes.TS;
-//import org.openhealthtools.mdht.uml.cda.consol.*;
-//import org.openhealthtools.mdht.uml.hl7.datatypes.*;
 import org.openhealthtools.mdht.uml.hl7.vocab.EntityDeterminer;
 import org.openhealthtools.mdht.uml.hl7.vocab.ParticipationType;
 import org.openhealthtools.mdht.uml.hl7.vocab.RoleClassRoot;
 
-/*
-import ca.uhn.fhir.model.api.ExtensionDt;
-import ca.uhn.fhir.model.dstu2.resource.AllergyIntolerance.Reaction;
-import ca.uhn.fhir.model.dstu2.resource.Device;
-import ca.uhn.fhir.model.dstu2.resource.Patient.Communication;
-import ca.uhn.fhir.model.dstu2.resource.Procedure.Performer;
-import ca.uhn.fhir.model.primitive.BooleanDt;
-import ca.uhn.fhir.model.primitive.IdDt;
-*/
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -168,7 +157,7 @@ public class ResourceTransformerImpl implements IResourceTransformer, Serializab
 
   private IDataTypesTransformer dtt;
   private IValueSetsTransformer vst;
-  private ICDATransformer cdat;
+  private ICdaTransformer cdat;
   private Reference defaultPatientRef;
 
   private final Logger logger = LoggerFactory.getLogger(ResourceTransformerImpl.class);
@@ -186,7 +175,7 @@ public class ResourceTransformerImpl implements IResourceTransformer, Serializab
     defaultPatientRef = new Reference(new IdType("Patient", 0L));
   }
 
-  public ResourceTransformerImpl(ICDATransformer cdaTransformer) {
+  public ResourceTransformerImpl(ICdaTransformer cdaTransformer) {
     this();
     cdat = cdaTransformer;
   }

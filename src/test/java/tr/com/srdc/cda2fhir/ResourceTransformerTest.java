@@ -1,6 +1,5 @@
 package tr.com.srdc.cda2fhir;
 
-import ca.uhn.fhir.model.api.IResource;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileWriter;
@@ -16,6 +15,8 @@ import org.hl7.fhir.dstu3.model.Organization;
 import org.hl7.fhir.dstu3.model.Patient;
 import org.hl7.fhir.dstu3.model.Patient.ContactComponent;
 import org.hl7.fhir.dstu3.model.Patient.PatientCommunicationComponent;
+import org.hl7.fhir.dstu3.model.Resource;
+
 
 /*
  * #%L
@@ -76,7 +77,7 @@ import org.openhealthtools.mdht.uml.hl7.datatypes.II;
 //import tr.com.srdc.cda2fhir.transform.DataTypesTransformerImpl;
 import tr.com.srdc.cda2fhir.transform.ResourceTransformerImpl;
 import tr.com.srdc.cda2fhir.transform.ValueSetsTransformerImpl;
-import tr.com.srdc.cda2fhir.util.FHIRUtil;
+import tr.com.srdc.cda2fhir.util.FhirUtil;
 
 public class ResourceTransformerTest {
 
@@ -1035,8 +1036,8 @@ public class ResourceTransformerTest {
     try {
       if (param instanceof String) {
         resultFW.append((String) param);
-      } else if (param instanceof IResource) {
-        FHIRUtil.printJSON((IResource) param, resultFW);
+      } else if (param instanceof Resource) {
+        FhirUtil.printJson((Resource) param, resultFW);
       }
     } catch (IOException e) {
       e.printStackTrace();
