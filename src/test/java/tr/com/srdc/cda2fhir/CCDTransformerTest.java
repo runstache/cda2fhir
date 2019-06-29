@@ -1,5 +1,6 @@
 package tr.com.srdc.cda2fhir;
 
+import ca.uhn.fhir.context.FhirContext;
 /*
  * #%L
  * CDA to FHIR Transformer Library
@@ -19,21 +20,28 @@ package tr.com.srdc.cda2fhir;
  * limitations under the License.
  * #L%
  */
+import ca.uhn.fhir.parser.IParser;
 
+import java.io.File;
 import java.io.FileInputStream;
+import java.io.FileWriter;
+import java.io.IOException;
 
 import org.hl7.fhir.dstu3.model.Bundle;
+import org.hl7.fhir.dstu3.model.Resource;
 import org.junit.BeforeClass;
 import org.junit.Test;
 import org.openhealthtools.mdht.uml.cda.ClinicalDocument;
 import org.openhealthtools.mdht.uml.cda.util.CDAUtil;
+
 import tr.com.srdc.cda2fhir.conf.Config;
 import tr.com.srdc.cda2fhir.transform.CcdTransformerImpl;
 import tr.com.srdc.cda2fhir.transform.ICdaTransformer;
-import tr.com.srdc.cda2fhir.util.FhirUtil;
 import tr.com.srdc.cda2fhir.util.IdGeneratorEnum;
 
 public class CcdTransformerTest {
+
+  private static final FhirContext ctx = FhirContext.forDstu3();
 
   /**
    * Before Class Initialization.
@@ -58,8 +66,8 @@ public class CcdTransformerTest {
     Config.setGenerateDafProfileMetadata(true);
     Config.setGenerateNarrative(true);
     Bundle bundle = ccdTransformer.transformDocument(cda);
-    if (bundle != null) {      
-      FhirUtil.printJson(bundle, "src/test/resources/output/170.315_b1_toc_gold_sample2_v1.json");
+    if (bundle != null) {
+      outputResource(bundle, "src/test/resources/output/170.315_b1_toc_gold_sample2_v1.json");
     }
   }
 
@@ -75,8 +83,8 @@ public class CcdTransformerTest {
     Config.setGenerateNarrative(true);
     Bundle bundle = ccdTransformer.transformDocument(cda);
     if (bundle != null) {
-      FhirUtil.printJson(
-          bundle, "src/test/resources/output/170.315_b1_toc_inp_ccd_r21_sample1_v5.json");
+      outputResource(bundle, 
+          "src/test/resources/output/170.315_b1_toc_inp_ccd_r21_sample1_v5.json");
     }
   }
 
@@ -91,7 +99,7 @@ public class CcdTransformerTest {
     Config.setGenerateNarrative(true);
     Bundle bundle = ccdTransformer.transformDocument(cda);
     if (bundle != null) {
-      FhirUtil.printJson(bundle, "src/test/resources/output/C-CDA_R2-1_CCD-w-daf.json");
+      outputResource(bundle, "src/test/resources/output/C-CDA_R2-1_CCD-w-daf.json");
     }
   }
 
@@ -106,7 +114,7 @@ public class CcdTransformerTest {
     Config.setGenerateNarrative(true);
     Bundle bundle = ccdTransformer.transformDocument(cda);
     if (bundle != null) {
-      FhirUtil.printJson(bundle, "src/test/resources/output/C-CDA_R2-1_CCD-wo-daf.json");
+      outputResource(bundle, "src/test/resources/output/C-CDA_R2-1_CCD-wo-daf.json");
     }
   }
 
@@ -122,7 +130,7 @@ public class CcdTransformerTest {
     Config.setGenerateNarrative(false);
     Bundle bundle = ccdTransformer.transformDocument(cda);
     if (bundle != null) {
-      FhirUtil.printJson(bundle, "src/test/resources/output/C-CDA_R2-1_CCD-wo-daf-narrative.json");
+      outputResource(bundle, "src/test/resources/output/C-CDA_R2-1_CCD-wo-daf-narrative.json");
     }
   }
 
@@ -137,8 +145,25 @@ public class CcdTransformerTest {
     Config.setGenerateNarrative(true);
     Bundle bundle = ccdTransformer.transformDocument(cda);
     if (bundle != null) {
-      FhirUtil.printJson(bundle, "src/test/resources/output/Vitera_CCDA_SMART_Sample.json");
+      outputResource(bundle, "src/test/resources/output/Vitera_CCDA_SMART_Sample.json");
     }
+  }
+
+  private void outputResource(Resource resource, String path) {
+    FileWriter writer;
+    try {
+      File file = new File(path);
+      file.getParentFile().mkdirs();
+      writer = new FileWriter(file);
+      IParser parser = ctx.newJsonParser();
+      parser.setPrettyPrint(true);
+      writer.append((String)parser.encodeResourceToString(resource));
+      writer.close();
+    } catch (IOException ex) {
+      ex.printStackTrace();
+    } 
+
+
   }
 
 }

@@ -107,9 +107,12 @@ public class DataTypesTransformerTest {
 
     Address address = dtt.transformAD2Address(ad);
 
-    Assert.assertEquals("AD.use was not transformed", "home", address.getUse());
-    Assert.assertEquals("AD.type was not transformed", "postal", address.getType());
-    Assert.assertEquals("AD.text was not transformed", "theText", address.getText());
+    Assert.assertEquals("AD.use was not transformed", "home", 
+        address.getUse().toCode().toLowerCase());
+    Assert.assertEquals("AD.type was not transformed", "postal", 
+        address.getType().toCode().toLowerCase());
+    Assert.assertEquals("AD.text was not transformed", "theText".toLowerCase(), 
+        address.getText().toLowerCase());
 
     // line array check
     int matchingElements = 0;
@@ -333,15 +336,18 @@ public class DataTypesTransformerTest {
 
     HumanName humanName = dtt.transformEN2HumanName(en);
 
-    Assert.assertEquals("EN.use was not transformed", "nickname", humanName.getUse());
-    Assert.assertEquals("EN.text was not transformed", "theText", humanName.getText());
-    Assert.assertEquals("EN.family was not transformed", "theFamily", humanName.getFamily());
-    Assert.assertEquals("EN.given was not transformed", "theGiven", 
-        humanName.getGiven().get(0).getValue());
-    Assert.assertEquals("EN.prefix was not transformed", "thePrefix", 
-        humanName.getPrefix().get(0).getValue());
-    Assert.assertEquals("EN.suffix was not transformed", "theSuffix", 
-        humanName.getSuffix().get(0).getValue());
+    Assert.assertEquals("EN.use was not transformed", "nickname", 
+        humanName.getUse().toCode().toLowerCase());
+    Assert.assertEquals("EN.text was not transformed", "theText".toLowerCase(), 
+        humanName.getText().toLowerCase());
+    Assert.assertEquals("EN.family was not transformed", "theFamily".toLowerCase(), 
+        humanName.getFamily().toLowerCase());
+    Assert.assertEquals("EN.given was not transformed", "theGiven".toLowerCase(), 
+        humanName.getGiven().get(0).getValue().toLowerCase());
+    Assert.assertEquals("EN.prefix was not transformed", "thePrefix".toLowerCase(), 
+        humanName.getPrefix().get(0).getValue().toLowerCase());
+    Assert.assertEquals("EN.suffix was not transformed", "theSuffix".toLowerCase(), 
+        humanName.getSuffix().get(0).getValue().toLowerCase());
 
     // EN.period tests for the simple instance test 1
     Period enPeriod = dtt.transformIvl_TS2Period(ivlts);
@@ -743,7 +749,8 @@ public class DataTypesTransformerTest {
     tel.getUses().add(TelecommunicationAddressUse.H);
 
     ContactPoint contactPoint = dtt.transformTel2ContactPoint(tel);
-    Assert.assertEquals("Tel.system failed", "phone", contactPoint.getSystem());
+    Assert.assertEquals("Tel.system failed", "phone", 
+        contactPoint.getSystem().toCode().toLowerCase());
     Assert.assertEquals("Tel.value failed", "+1(555)555-1004", contactPoint.getValue());
     Assert.assertEquals("Tel.periodStart getYear failed", 95, 
         contactPoint.getPeriod().getStart().getYear());
@@ -757,7 +764,7 @@ public class DataTypesTransformerTest {
         contactPoint.getPeriod().getEnd().getMonth());
     Assert.assertEquals("Tel.periodEnd getMonth failed", 27, 
         contactPoint.getPeriod().getEnd().getDate());
-    Assert.assertEquals("Tel.use failed", "home", contactPoint.getUse());
+    Assert.assertEquals("Tel.use failed", "home", contactPoint.getUse().toCode().toLowerCase());
 
     // null instance test
     TEL tel2 = null;

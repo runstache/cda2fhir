@@ -82,6 +82,7 @@ import org.hl7.fhir.dstu3.model.Procedure.ProcedureStatus;
 import org.hl7.fhir.dstu3.model.Reference;
 import org.hl7.fhir.dstu3.model.Substance;
 import org.hl7.fhir.dstu3.model.Timing;
+import org.hl7.fhir.exceptions.FHIRException;
 
 import org.openhealthtools.mdht.uml.cda.AssignedAuthor;
 import org.openhealthtools.mdht.uml.cda.AssignedEntity;
@@ -1737,8 +1738,15 @@ public class ResourceTransformerImpl implements IResourceTransformer, Serializab
       if (cdaImmunizationActivity.getStatusCode().getCode() != null
           && !cdaImmunizationActivity.getStatusCode().getCode().isEmpty()) {
             
-        fhirImmunization.setStatus(
+        try {
+          fhirImmunization.setStatus(
               ImmunizationStatus.fromCode(cdaImmunizationActivity.getStatusCode().getCode()));
+        } catch (FHIRException ex) {
+          logger.warn("Unable to map Immunization Activity Status Code " 
+              + cdaImmunizationActivity.getStatusCode().getCode() 
+              + " to Immunization Status Code.");
+        }
+
       }
     }
 

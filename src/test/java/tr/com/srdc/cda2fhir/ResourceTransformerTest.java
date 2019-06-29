@@ -1,5 +1,7 @@
 package tr.com.srdc.cda2fhir;
 
+import ca.uhn.fhir.context.FhirContext;
+import ca.uhn.fhir.parser.IParser;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileWriter;
@@ -16,7 +18,6 @@ import org.hl7.fhir.dstu3.model.Patient;
 import org.hl7.fhir.dstu3.model.Patient.ContactComponent;
 import org.hl7.fhir.dstu3.model.Patient.PatientCommunicationComponent;
 import org.hl7.fhir.dstu3.model.Resource;
-
 
 /*
  * #%L
@@ -49,8 +50,8 @@ import org.openhealthtools.mdht.uml.cda.Organizer;
 import org.openhealthtools.mdht.uml.cda.PatientRole;
 import org.openhealthtools.mdht.uml.cda.Performer2;
 import org.openhealthtools.mdht.uml.cda.Section;
-
 import org.openhealthtools.mdht.uml.cda.consol.AllergyProblemAct;
+import org.openhealthtools.mdht.uml.cda.consol.ConsolPackage;
 import org.openhealthtools.mdht.uml.cda.consol.ContinuityOfCareDocument;
 import org.openhealthtools.mdht.uml.cda.consol.EncounterActivities;
 import org.openhealthtools.mdht.uml.cda.consol.FamilyHistoryOrganizer;
@@ -68,16 +69,16 @@ import org.openhealthtools.mdht.uml.cda.consol.SocialHistorySection;
 import org.openhealthtools.mdht.uml.cda.consol.VitalSignObservation;
 import org.openhealthtools.mdht.uml.cda.consol.VitalSignsOrganizer;
 import org.openhealthtools.mdht.uml.cda.consol.VitalSignsSectionEntriesOptional;
-
 import org.openhealthtools.mdht.uml.cda.util.CDAUtil;
 import org.openhealthtools.mdht.uml.hl7.datatypes.EN;
 import org.openhealthtools.mdht.uml.hl7.datatypes.ENXP;
 import org.openhealthtools.mdht.uml.hl7.datatypes.II;
 
+
 //import tr.com.srdc.cda2fhir.transform.DataTypesTransformerImpl;
 import tr.com.srdc.cda2fhir.transform.ResourceTransformerImpl;
 import tr.com.srdc.cda2fhir.transform.ValueSetsTransformerImpl;
-import tr.com.srdc.cda2fhir.util.FhirUtil;
+//import tr.com.srdc.cda2fhir.util.FhirUtil;
 
 public class ResourceTransformerTest {
 
@@ -92,6 +93,7 @@ public class ResourceTransformerTest {
   private static final String transformationStartMsg = "\n# TRANSFORMATION STARTING..\n";
   private static final String transformationEndMsg = "# END OF TRANSFORMATION.\n";
   private static final String endOfTestMsg = "\n## END OF TEST\n";
+  private static final FhirContext ctx = FhirContext.forDstu3();
 
   /**
    * Test Class Initialization Method.
@@ -102,8 +104,10 @@ public class ResourceTransformerTest {
 
     // read the input test file
     try {
-      fisCCD = new FileInputStream("src/test/resources/C-CDA_R2-1_CCD.xml");
-      ccd = (ContinuityOfCareDocument) CDAUtil.load(fisCCD);
+      fisCCD = new FileInputStream("src/test/resources/C-CDA_R2-1_CCD.xml");      
+      ccd = (ContinuityOfCareDocument) CDAUtil.loadAs(
+            fisCCD, 
+            ConsolPackage.eINSTANCE.getContinuityOfCareDocument());
     } catch (Exception ex) {
       ex.printStackTrace();
     }
@@ -116,6 +120,7 @@ public class ResourceTransformerTest {
     } catch (IOException e) {
       e.printStackTrace();
     }
+    
   }
 
   /**
@@ -147,6 +152,7 @@ public class ResourceTransformerTest {
       appendToResultFile(transformationStartMsg);
       Bundle allergyBundle = rt.transformAllergyProblemAct2AllergyIntolerance(cdaApa);
       appendToResultFile(transformationEndMsg);
+      
       appendToResultFile(allergyBundle);
     }
     appendToResultFile(endOfTestMsg);
@@ -325,7 +331,7 @@ public class ResourceTransformerTest {
 
   @Test
   public void testGuardian2Contact() {
-
+    
     appendToResultFile("## TEST: Guardian2Contact\n");
     // null instance test
     Guardian cdaNull = null;
@@ -620,7 +626,7 @@ public class ResourceTransformerTest {
         } else {
           Assert.assertEquals("pr.patient.name[" + nameCount + "]" + ".use was not transformed",
               vsti.transformEntityNameUse2NameUse(pn.getUses().get(0)).toString().toLowerCase(),
-              patient.getName().get(nameCount).getUse());
+              patient.getName().get(nameCount).getUse().toCode().toLowerCase());
         }
 
         // patient.name.text
@@ -1037,7 +1043,10 @@ public class ResourceTransformerTest {
       if (param instanceof String) {
         resultFW.append((String) param);
       } else if (param instanceof Resource) {
-        FhirUtil.printJson((Resource) param, resultFW);
+        IParser parser = ctx.newJsonParser();
+        parser.setPrettyPrint(true);
+        resultFW.append((String)parser.encodeResourceToString((Resource)param));
+        //FhirUtil.printJson((Resource) param, resultFW);
       }
     } catch (IOException e) {
       e.printStackTrace();
