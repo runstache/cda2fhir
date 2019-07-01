@@ -1,6 +1,9 @@
 package tr.com.srdc.cda2fhir.transform;
 
+import java.util.List;
+
 import org.hl7.fhir.dstu3.model.Bundle;
+import org.hl7.fhir.dstu3.model.ConceptMap;
 
 /*
  * #%L
@@ -60,4 +63,15 @@ public interface ICdaTransformer {
    *         Composition.
    */
   Bundle transformDocument(ClinicalDocument cda);
+
+  /**
+   * Transforms a Clinical Document Architecture Document 
+   * into an Instance of a FHIR Bundle of Resources.
+   * @param cda A Clinical Document Instance to Transform.
+   * @param maps A Collection of Concept Maps to handle mapping CDA Codes to FHIR.
+   * @return A FHIR Bundle that contains a Composition corresponding to the CDA
+   *         document and all other resources that are referenced within the
+   *         Composition.
+   */
+  Bundle tranformDocument(ClinicalDocument cda, List<ConceptMap> maps);
 }

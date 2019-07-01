@@ -6,6 +6,7 @@ import org.hl7.fhir.dstu3.model.Base64BinaryType;
 import org.hl7.fhir.dstu3.model.BooleanType;
 import org.hl7.fhir.dstu3.model.CodeableConcept;
 import org.hl7.fhir.dstu3.model.Coding;
+import org.hl7.fhir.dstu3.model.ConceptMap;
 import org.hl7.fhir.dstu3.model.ContactPoint;
 import org.hl7.fhir.dstu3.model.DateTimeType;
 import org.hl7.fhir.dstu3.model.DateType;
@@ -116,6 +117,15 @@ public interface IDataTypesTransformer {
    * @return A Coding composite datatype instance
    */
   Coding transformCV2Coding(CV cv);
+
+  /**
+   * Transforms a CDA CV instance to a FHIR CodingDt composite datatype instance.
+   * @param cv A CDA CV Instance
+   * @param map A ConceptMap to apply to the CV Element.
+   * @return A FHIR Coding
+   */
+  Coding transformCV2Coding(CV cv, ConceptMap map);
+
 
   /**
    * Transforms a CDA ED instance to a FHIR AttachmentDt composite datatype

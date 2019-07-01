@@ -1,5 +1,7 @@
 package tr.com.srdc.cda2fhir;
 
+import static org.junit.Assert.assertEquals;
+
 /*
  * #%L
  * CDA to FHIR Transformer Library
@@ -28,10 +30,16 @@ import org.hl7.fhir.dstu3.model.Attachment;
 import org.hl7.fhir.dstu3.model.BooleanType;
 import org.hl7.fhir.dstu3.model.CodeableConcept;
 import org.hl7.fhir.dstu3.model.Coding;
+import org.hl7.fhir.dstu3.model.ConceptMap;
+import org.hl7.fhir.dstu3.model.ConceptMap.ConceptMapGroupComponent;
+import org.hl7.fhir.dstu3.model.ConceptMap.SourceElementComponent;
+import org.hl7.fhir.dstu3.model.ConceptMap.TargetElementComponent;
+
 import org.hl7.fhir.dstu3.model.ContactPoint;
 import org.hl7.fhir.dstu3.model.DateTimeType;
 import org.hl7.fhir.dstu3.model.DateType;
 import org.hl7.fhir.dstu3.model.DecimalType;
+import org.hl7.fhir.dstu3.model.Enumerations.ConceptMapEquivalence;
 import org.hl7.fhir.dstu3.model.HumanName;
 import org.hl7.fhir.dstu3.model.Identifier;
 import org.hl7.fhir.dstu3.model.InstantType;
@@ -42,6 +50,7 @@ import org.hl7.fhir.dstu3.model.Range;
 import org.hl7.fhir.dstu3.model.Ratio;
 import org.hl7.fhir.dstu3.model.StringType;
 import org.hl7.fhir.dstu3.model.Timing;
+
 import org.junit.Assert;
 import org.junit.Test;
 import org.openhealthtools.mdht.uml.hl7.datatypes.AD;
@@ -986,6 +995,38 @@ public class DataTypesTransformerTest {
         instant10.getValueAsString());
   }
 
+  @Test
+  public void testTransformCV2CodingConceptMap() {
+    
+    Identifier id = new Identifier();
+    id.setSystem("coding.concept.map");
+    id.setValue("coding");
+    ConceptMapGroupComponent system = new ConceptMapGroupComponent();
+    system.setSource("system");
+    system.setTarget("system");
+    SourceElementComponent systemElement = new SourceElementComponent();
+    systemElement.setCode("2.16.840.1.113883.6.1");
+    TargetElementComponent systemTarget = new TargetElementComponent();
+    systemTarget.setCode("http://loinc.org");
+    systemTarget.setEquivalence(ConceptMapEquivalence.EQUAL);
+    systemElement.addTarget(systemTarget);
+    system.addElement(systemElement);
+    ConceptMap map = new ConceptMap();
+    map.addGroup(system);
+    CV cv = DatatypesFactory.eINSTANCE.createCV();
+    cv.setCode("29299-5");
+    cv.setCodeSystem("2.16.840.1.113883.6.1");
+    cv.setDisplayName("REASON FOR VISIT");
+    Coding coding = dtt.transformCV2Coding(cv, map);
+    assertEquals("http://loinc.org", coding.getSystem());
+    assertEquals("29299-5", coding.getCode());
+    assertEquals("REASON FOR VISIT", coding.getDisplay());
+
+
+    
+  }
+
+
   // LocalTimeZone is used for the tests of TS2DateTime and TS2Instant
   private String getLocalTimeZoneString() {
     int timeZoneOffset = TimeZone.getDefault().getRawOffset();
@@ -1010,4 +1051,6 @@ public class DataTypesTransformerTest {
 
     return sign + hourString + ":" + minString;
   }
+
+  
 }

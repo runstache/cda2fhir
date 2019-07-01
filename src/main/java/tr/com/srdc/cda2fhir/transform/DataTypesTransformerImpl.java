@@ -23,13 +23,16 @@ package tr.com.srdc.cda2fhir.transform;
 import ca.uhn.fhir.model.api.TemporalPrecisionEnum;
 import ca.uhn.fhir.parser.DataFormatException;
 import java.io.Serializable;
+import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import java.util.TimeZone;
 
 import org.eclipse.emf.ecore.impl.EStructuralFeatureImpl;
 import org.eclipse.emf.ecore.util.BasicFeatureMap;
 import org.eclipse.emf.ecore.util.FeatureMap;
+
 import org.hl7.fhir.dstu3.model.Address;
 import org.hl7.fhir.dstu3.model.Attachment;
 import org.hl7.fhir.dstu3.model.Base64BinaryType;
@@ -37,6 +40,11 @@ import org.hl7.fhir.dstu3.model.BaseDateTimeType;
 import org.hl7.fhir.dstu3.model.BooleanType;
 import org.hl7.fhir.dstu3.model.CodeableConcept;
 import org.hl7.fhir.dstu3.model.Coding;
+import org.hl7.fhir.dstu3.model.ConceptMap;
+import org.hl7.fhir.dstu3.model.ConceptMap.ConceptMapGroupComponent;
+import org.hl7.fhir.dstu3.model.ConceptMap.ConceptMapGroupUnmappedMode;
+import org.hl7.fhir.dstu3.model.ConceptMap.SourceElementComponent;
+import org.hl7.fhir.dstu3.model.ConceptMap.TargetElementComponent;
 import org.hl7.fhir.dstu3.model.ContactPoint;
 import org.hl7.fhir.dstu3.model.ContactPoint.ContactPointSystem;
 import org.hl7.fhir.dstu3.model.DateTimeType;
@@ -57,6 +65,7 @@ import org.hl7.fhir.dstu3.model.StringType;
 import org.hl7.fhir.dstu3.model.Timing;
 import org.hl7.fhir.dstu3.model.Timing.TimingRepeatComponent;
 import org.hl7.fhir.dstu3.model.UriType;
+
 import org.openhealthtools.mdht.uml.cda.StrucDocText;
 import org.openhealthtools.mdht.uml.hl7.datatypes.AD;
 import org.openhealthtools.mdht.uml.hl7.datatypes.ADXP;
@@ -300,9 +309,9 @@ public class DataTypesTransformerImpl implements IDataTypesTransformer, Serializ
    */
   public CodeableConcept transformCD2CodeableConceptExcludingTranslations(CD cd) {
     if (cd == null || cd.isSetNullFlavor()) {
-      return null;
+      return null;      
     }
-
+    
     CodeableConcept myCodeableConcept = new CodeableConcept();
 
     // .
@@ -375,6 +384,76 @@ public class DataTypesTransformerImpl implements IDataTypesTransformer, Serializ
     return coding;
   }
 
+  /**
+   * Transforms a CDA CV Section to a Coding Value using a Concept Map.
+   * @param cv CDA CV Item
+   * @param map Concept Maps to apply.
+   * @return FHIR Coding
+   */
+  public Coding transformCV2Coding(CV cv, ConceptMap map) {
+
+    if (cv == null || cv.isSetNullFlavor()) {
+      return null;
+    }
+    Coding coding = transformCV2Coding(cv);
+    if (coding == null) {
+      coding = new Coding();
+    }
+    applyConceptMap(coding, map);
+    return coding;
+  }
+
+
+  /**
+   * Applies a FHIR Concept Map the provided Entity.
+   * @param <T> Entity Type
+   * @param entity Entity to apply Concept Map to.
+   * @param map Concept Map to apply
+   * @return The Entity with the applied concept map.
+   */
+  public <T> T applyConceptMap(T entity, ConceptMap map) {
+
+    for (ConceptMapGroupComponent group : map.getGroup()) {
+      Method[] methods = entity.getClass().getMethods();
+      for (int i = 0; i < methods.length; i++) {
+        Method method = methods[i];
+        if (method.getName().equalsIgnoreCase("get" + group.getSource())) {
+          Method[] targetMethods = entity.getClass().getMethods();
+          for (int j = 0; j < targetMethods.length; j++) {          
+            Method targetMethod = targetMethods[j];
+            if (targetMethod.getName().equalsIgnoreCase("set" + group.getTarget())) {            
+              try {            
+                final String value = method.invoke(entity).toString();            
+                Optional<SourceElementComponent> source = 
+                    group.getElement()
+                        .stream()
+                        .filter(c -> c.getCode().equalsIgnoreCase(value))
+                        .findFirst();
+                if (source.isPresent()) {
+                  targetMethod.invoke(entity, source.get().getTargetFirstRep().getCode());
+                } else {
+                  //Process the unmapped
+                  if (group.getUnmapped() != null 
+                      && !group.getUnmapped()
+                          .getMode()
+                          .equals(ConceptMapGroupUnmappedMode.PROVIDED)) {
+                    targetMethod.invoke(entity, group.getUnmapped().getCode());
+                    
+                  } else {
+                    targetMethod.invoke(entity, value);
+                  }
+                }
+              } catch (Exception ex) {
+                logger.warn("Unable to apply Concept Map: " + ex.getMessage());
+              }
+            }
+          }
+          break;
+        }
+      }
+    }
+    return entity;
+  }
   /**
    * Transforms a CDA ED to an Attachment.
    * @param ed CDA ED

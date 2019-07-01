@@ -28,9 +28,6 @@ import java.net.HttpURLConnection;
 import java.net.URISyntaxException;
 import java.net.URL;
 
-import javax.xml.parsers.ParserConfigurationException;
-import javax.xml.transform.TransformerException;
-
 import org.hl7.fhir.dstu3.model.Bundle;
 import org.hl7.fhir.dstu3.model.Bundle.BundleEntryComponent;
 import org.hl7.fhir.dstu3.model.Resource;
@@ -204,9 +201,6 @@ public class ValidatorImpl implements IValidator {
     try {
       throw new FHIRException("Not Implemented");
     } catch (FHIRException e) {
-        //| ParserConfigurationException 
-        //| TransformerException 
-        //| SAXException | IOException e) {
       logger.error("Exception occurred while trying to validate the"
           + " FHIR resource. Returning exception message", e);
       String exceptionAsHtml = "<h3>" + resource.getId() + "</h3>"
