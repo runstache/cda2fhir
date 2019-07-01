@@ -31,6 +31,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import tr.com.srdc.cda2fhir.conf.Config;
 
+@Deprecated
 public class FhirUtil {
 
   private static IParser jsonParser;
