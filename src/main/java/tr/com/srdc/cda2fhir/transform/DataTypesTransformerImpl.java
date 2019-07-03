@@ -42,6 +42,7 @@ import org.hl7.fhir.dstu3.model.Coding;
 import org.hl7.fhir.dstu3.model.ConceptMap;
 import org.hl7.fhir.dstu3.model.ContactPoint;
 import org.hl7.fhir.dstu3.model.ContactPoint.ContactPointSystem;
+import org.hl7.fhir.dstu3.model.ContactPoint.ContactPointUse;
 import org.hl7.fhir.dstu3.model.DateTimeType;
 import org.hl7.fhir.dstu3.model.DateType;
 import org.hl7.fhir.dstu3.model.DecimalType;
@@ -1025,8 +1026,85 @@ public class DataTypesTransformerImpl implements IDataTypesTransformer, Serializ
       return null;
     }
 
-    //TODO: Apply Concept Map items
-    return null;
+    ContactPoint contactPoint = new ContactPoint();
+
+    // value and system -> value
+    if (tel.getValue() != null && !tel.getValue().isEmpty()) {
+      String value = tel.getValue();
+      String[] systemType = value.split(":");
+
+      String contactSystem = "";
+      String contactValue = "";
+
+      if (systemType.length > 1) {
+        contactSystem = systemType[0];
+        contactValue = systemType[1];
+      } else if (systemType.length == 1) {
+        contactSystem = Config.DEFAULT_CONTACT_POINT_SYSTEM.toString();
+        contactValue = systemType[0];
+      }
+      Optional<ConceptMap> systemMap = 
+          maps.stream()
+            .filter(c -> c.getIdentifier().getValue().contains("contactpoint.system"))
+            .findFirst();
+      if (systemMap.isPresent()) {
+        contactPoint.setSystem(
+              vst.transformCdaValueToFhirCodeValue(
+                contactSystem, systemMap.get(), ContactPointSystem.class));
+      } else {
+        ContactPointSystem contactPointSystem = 
+              vst.transformTelValue2ContactPointSystem(contactSystem);
+        contactPoint.setSystem(contactPointSystem);
+      }
+      contactPoint.setValue(contactValue);
+    }
+
+    // useablePeriods -> period
+    if (tel.getUseablePeriods() != null && !tel.getUseablePeriods().isEmpty()) {
+      Period period = new Period();
+      int sxcmCounter = 0;
+      for (SXCM_TS sxcmts : tel.getUseablePeriods()) {
+        if (sxcmts != null && !sxcmts.isSetNullFlavor()) {
+          // useablePeriods[0] -> period.start
+          // useablePeriods[1] -> period.end
+          if (sxcmCounter == 0) {
+            if (sxcmts.getValue() != null && !sxcmts.getValue().isEmpty()) {
+              period.setStartElement(transformString2DateTime(sxcmts.getValue()));
+            }
+          } else if (sxcmCounter == 1) {
+            if (sxcmts.getValue() != null && !sxcmts.getValue().isEmpty()) {
+              period.setEndElement(transformString2DateTime(sxcmts.getValue()));
+            }
+          }
+          sxcmCounter++;
+        }
+      }
+      contactPoint.setPeriod(period);
+    }
+
+    // use -> use
+    if (tel.getUses() != null && !tel.getUses().isEmpty()) {
+      Optional<ConceptMap> useMap = 
+          maps.stream()
+            .filter(c -> c.getIdentifier().getValue().contains("contactpoint.use")).findFirst();
+      for (TelecommunicationAddressUse telAddressUse : tel.getUses()) {
+        if (useMap.isPresent()) {
+          contactPoint.setUse(
+                vst.transformCdaValueToFhirCodeValue(
+                    telAddressUse.getLiteral(), useMap.get(), ContactPointUse.class));
+        } else {
+          contactPoint.setUse(
+                vst.transformTelecommunicationAddressUse2ContactPointUse(telAddressUse));
+        }
+      }
+      for (TelecommunicationAddressUse telAddressUse : tel.getUses()) {
+        if (telAddressUse != null) {
+          contactPoint.setUse(
+                vst.transformTelecommunicationAddressUse2ContactPointUse(telAddressUse));
+        }
+      }
+    }
+    return contactPoint;
   }
 
   /**
