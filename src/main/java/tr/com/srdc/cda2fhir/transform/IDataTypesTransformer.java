@@ -102,6 +102,16 @@ public interface IDataTypesTransformer {
   CodeableConcept transformCD2CodeableConcept(CD cd);
 
   /**
+   * Transforms a CDA CD Instance to a FHIR Codeable Concept 
+   * utilizing a Concept Map for any Coding values.
+   * @param cd CDA CD instance
+   * @param includeTranslations Boolean flag to include the Translations in the coding.
+   * @param map Concept Map to apply.
+   * @return CodeableConcept.
+   */
+  CodeableConcept transformCD2CodeableConcept(CD cd, boolean includeTranslations, ConceptMap map);
+
+  /**
    * Transforms a CDA CD instance to a FHIR CodeableConceptDt composite datatype
    * instance. Translations of the CD instance are excluded.
    * 
@@ -109,6 +119,8 @@ public interface IDataTypesTransformer {
    * @return A CodeableConceptDt composite datatype instance
    */
   CodeableConcept transformCD2CodeableConceptExcludingTranslations(CD cd);
+
+
 
   /**
    * Transforms a CDA CV instance to a FHIR CodingDt composite datatype instance.
@@ -126,7 +138,7 @@ public interface IDataTypesTransformer {
    */
   Coding transformCV2Coding(CV cv, ConceptMap map);
 
-
+ 
   /**
    * Transforms a CDA ED instance to a FHIR AttachmentDt composite datatype
    * instance.

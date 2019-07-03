@@ -23,7 +23,6 @@ package tr.com.srdc.cda2fhir.transform;
 import ca.uhn.fhir.model.api.TemporalPrecisionEnum;
 import ca.uhn.fhir.parser.DataFormatException;
 import java.io.Serializable;
-import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -41,17 +40,15 @@ import org.hl7.fhir.dstu3.model.BooleanType;
 import org.hl7.fhir.dstu3.model.CodeableConcept;
 import org.hl7.fhir.dstu3.model.Coding;
 import org.hl7.fhir.dstu3.model.ConceptMap;
-import org.hl7.fhir.dstu3.model.ConceptMap.ConceptMapGroupComponent;
-import org.hl7.fhir.dstu3.model.ConceptMap.ConceptMapGroupUnmappedMode;
-import org.hl7.fhir.dstu3.model.ConceptMap.SourceElementComponent;
-import org.hl7.fhir.dstu3.model.ConceptMap.TargetElementComponent;
 import org.hl7.fhir.dstu3.model.ContactPoint;
 import org.hl7.fhir.dstu3.model.ContactPoint.ContactPointSystem;
 import org.hl7.fhir.dstu3.model.DateTimeType;
 import org.hl7.fhir.dstu3.model.DateType;
 import org.hl7.fhir.dstu3.model.DecimalType;
 import org.hl7.fhir.dstu3.model.HumanName;
+import org.hl7.fhir.dstu3.model.HumanName.NameUse;
 import org.hl7.fhir.dstu3.model.Identifier;
+import org.hl7.fhir.dstu3.model.Identifier.IdentifierUse;
 import org.hl7.fhir.dstu3.model.InstantType;
 import org.hl7.fhir.dstu3.model.IntegerType;
 import org.hl7.fhir.dstu3.model.Narrative;
@@ -305,6 +302,26 @@ public class DataTypesTransformerImpl implements IDataTypesTransformer, Serializ
   }
 
   /**
+   * Transforms a CDA CD Element into a Codeable Concept.
+   */
+  public CodeableConcept transformCD2CodeableConcept(CD cd, 
+      boolean includeTranslations, ConceptMap map) {
+    CodeableConcept concept = 
+        vst.transformCdaValueToFhirCodeValue(cd.getCode(), map, CodeableConcept.class);
+    if (concept != null) {
+      if (includeTranslations) {
+        for (CD trans : cd.getTranslations()) {
+          Coding coding = vst.transformCdaValueToFhirCodeValue(trans.getCode(), map, Coding.class);
+          if (coding != null) {
+            concept.addCoding(coding);
+          }
+        }
+      }
+    }
+    return concept;
+  }
+
+  /**
    * Transforms CDA CD to Codeable Concept.
    */
   public CodeableConcept transformCD2CodeableConceptExcludingTranslations(CD cd) {
@@ -395,65 +412,10 @@ public class DataTypesTransformerImpl implements IDataTypesTransformer, Serializ
     if (cv == null || cv.isSetNullFlavor()) {
       return null;
     }
-    Coding coding = transformCV2Coding(cv);
-    if (coding == null) {
-      coding = new Coding();
-    }
-    applyConceptMap(coding, map);
+    Coding coding = vst.transformCdaValueToFhirCodeValue(cv.getCode(), map, Coding.class);
     return coding;
   }
 
-
-  /**
-   * Applies a FHIR Concept Map the provided Entity.
-   * @param <T> Entity Type
-   * @param entity Entity to apply Concept Map to.
-   * @param map Concept Map to apply
-   * @return The Entity with the applied concept map.
-   */
-  public <T> T applyConceptMap(T entity, ConceptMap map) {
-
-    for (ConceptMapGroupComponent group : map.getGroup()) {
-      Method[] methods = entity.getClass().getMethods();
-      for (int i = 0; i < methods.length; i++) {
-        Method method = methods[i];
-        if (method.getName().equalsIgnoreCase("get" + group.getSource())) {
-          Method[] targetMethods = entity.getClass().getMethods();
-          for (int j = 0; j < targetMethods.length; j++) {          
-            Method targetMethod = targetMethods[j];
-            if (targetMethod.getName().equalsIgnoreCase("set" + group.getTarget())) {            
-              try {            
-                final String value = method.invoke(entity).toString();            
-                Optional<SourceElementComponent> source = 
-                    group.getElement()
-                        .stream()
-                        .filter(c -> c.getCode().equalsIgnoreCase(value))
-                        .findFirst();
-                if (source.isPresent()) {
-                  targetMethod.invoke(entity, source.get().getTargetFirstRep().getCode());
-                } else {
-                  //Process the unmapped
-                  if (group.getUnmapped() != null 
-                      && !group.getUnmapped()
-                          .getMode()
-                          .equals(ConceptMapGroupUnmappedMode.PROVIDED)) {
-                    targetMethod.invoke(entity, group.getUnmapped().getCode());
-                    
-                  } else {
-                    targetMethod.invoke(entity, value);
-                  }
-                }
-              } catch (Exception ex) {
-                logger.warn("Unable to apply Concept Map: " + ex.getMessage());
-              }
-            }
-          }
-          break;
-        }
-      }
-    }
-    return entity;
-  }
   /**
    * Transforms a CDA ED to an Attachment.
    * @param ed CDA ED
@@ -559,6 +521,70 @@ public class DataTypesTransformerImpl implements IDataTypesTransformer, Serializ
   }
 
   /**
+   * Transforms a EN Entity to a Human Name and applies a Concept Map for the Use.
+   * @param en CDA EN Entitiy.
+   * @param map Concept Map
+   * @return Human Name
+   */
+  public HumanName tranformEN2HumanName(EN en, ConceptMap map) {
+    if (en == null || en.isSetNullFlavor()) {
+      return null;
+    }
+
+    HumanName name = new HumanName();
+    // text -> text
+    if (en.getText() != null && !en.getText().isEmpty()) {
+      name.setText(en.getText());
+    }
+
+    // use -> use
+    if (en.getUses() != null && !en.getUses().isEmpty()) {
+      for (EntityNameUse entityNameUse : en.getUses()) {
+        if (entityNameUse != null) {
+          name.setUse(
+                vst.transformCdaValueToFhirCodeValue(entityNameUse.toString(), map, NameUse.class));
+        }
+      }
+    }
+
+    // family -> family
+    if (en.getFamilies() != null && !en.getFamilies().isEmpty()) {
+      for (ENXP family : en.getFamilies()) {
+        name.setFamily(family.getText());
+      }
+    }
+
+    // given -> given
+    if (en.getGivens() != null && !en.getGivens().isEmpty()) {
+      for (ENXP given : en.getGivens()) {
+        name.addGiven(given.getText());
+      }
+    }
+
+    // prefix -> prefix
+    if (en.getPrefixes() != null && !en.getPrefixes().isEmpty()) {
+      for (ENXP prefix : en.getPrefixes()) {
+        name.addPrefix(prefix.getText());
+      }
+    }
+
+    // suffix -> suffix
+    if (en.getSuffixes() != null && !en.getSuffixes().isEmpty()) {
+      for (ENXP suffix : en.getSuffixes()) {
+        name.addSuffix(suffix.getText());
+      }
+    }
+
+    // validTime -> period
+    if (en.getValidTime() != null && !en.getValidTime().isSetNullFlavor()) {
+      name.setPeriod(transformIvl_TS2Period(en.getValidTime()));
+    }
+
+    return name;
+
+  }
+
+  /**
    * Transforms a CDA II Entity to an Identifier.
    * @param ii CDA II Entity.
    * @return Identifier
@@ -598,6 +624,47 @@ public class DataTypesTransformerImpl implements IDataTypesTransformer, Serializ
     }
     return identifier;
 
+  }
+
+  /**
+   * Transforms an II CDA Entitiy into a FHIR Identifier utilizing Concept Maps.
+   * @param ii CDA II Entity
+   * @param maps Concept Maps to use.
+   * @return Identifier.
+   */
+  public Identifier transformII2Identifier(II ii, List<ConceptMap> maps) {
+    Identifier id = new Identifier();
+    Optional<ConceptMap> useMap = 
+        maps.stream()
+          .filter(c -> c.getIdentifier().getValue().contains("identifier.use"))
+          .findFirst();
+    if (useMap.isPresent()) {
+      id.setUse(vst.transformCdaValueToFhirCodeValue("", useMap.get(), IdentifierUse.class));
+    } 
+
+    Optional<ConceptMap> typeMap = 
+        maps.stream()
+            .filter(c -> c.getIdentifier().getValue().contains("identifier.type"))
+            .findFirst();
+    if (typeMap.isPresent()) {
+      id.setType(vst.transformCdaValueToFhirCodeValue("", typeMap.get(), CodeableConcept.class));
+    }
+
+    if (ii.getRoot() != null && !ii.getRoot().isEmpty()) {
+      Optional<ConceptMap> systemMap = 
+          maps.stream()
+            .filter(c -> c.getIdentifier().getValue().contains("identifier.system")).findFirst();
+      if (systemMap.isPresent()) {
+        id.setSystem(
+              vst.transformCdaValueToFhirCodeValue(ii.getRoot(), systemMap.get(), String.class));
+      } else {
+        id.setSystem(ii.getRoot());
+      }
+    }
+    if (ii.getExtension() != null && !ii.getExtension().isEmpty()) {
+      id.setValue(ii.getExtension());
+    }
+    return id;
   }
 
   /**
@@ -945,6 +1012,21 @@ public class DataTypesTransformerImpl implements IDataTypesTransformer, Serializ
       }
     }
     return contactPoint;
+  }
+
+  /**
+   * Transforms a CDA TEL Entity into a Contact Point using a Concept Maps for Use and Type.
+   * @param tel CDA TEL Entitiy
+   * @param maps Concept Maps to use
+   * @return Contact Point
+   */
+  public ContactPoint transformTel2ContactPoint(TEL tel, List<ConceptMap> maps) {
+    if (tel == null || tel.isSetNullFlavor()) {
+      return null;
+    }
+
+    //TODO: Apply Concept Map items
+    return null;
   }
 
   /**

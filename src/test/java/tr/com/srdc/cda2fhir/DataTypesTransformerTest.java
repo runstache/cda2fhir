@@ -32,6 +32,8 @@ import org.hl7.fhir.dstu3.model.CodeableConcept;
 import org.hl7.fhir.dstu3.model.Coding;
 import org.hl7.fhir.dstu3.model.ConceptMap;
 import org.hl7.fhir.dstu3.model.ConceptMap.ConceptMapGroupComponent;
+import org.hl7.fhir.dstu3.model.ConceptMap.ConceptMapGroupUnmappedComponent;
+import org.hl7.fhir.dstu3.model.ConceptMap.ConceptMapGroupUnmappedMode;
 import org.hl7.fhir.dstu3.model.ConceptMap.SourceElementComponent;
 import org.hl7.fhir.dstu3.model.ConceptMap.TargetElementComponent;
 
@@ -996,36 +998,137 @@ public class DataTypesTransformerTest {
   }
 
   @Test
-  public void testTransformCV2CodingConceptMap() {
-    
-    Identifier id = new Identifier();
-    id.setSystem("coding.concept.map");
-    id.setValue("coding");
-    ConceptMapGroupComponent system = new ConceptMapGroupComponent();
-    system.setSource("system");
-    system.setTarget("system");
-    SourceElementComponent systemElement = new SourceElementComponent();
-    systemElement.setCode("2.16.840.1.113883.6.1");
-    TargetElementComponent systemTarget = new TargetElementComponent();
-    systemTarget.setCode("http://loinc.org");
-    systemTarget.setEquivalence(ConceptMapEquivalence.EQUAL);
-    systemElement.addTarget(systemTarget);
-    system.addElement(systemElement);
+  public void testApplyConceptMapCoding() {
+    ConceptMapGroupComponent group = new ConceptMapGroupComponent();
+    group.setSource("urn:oid:2.16.840.1.113883.6.1");
+    group.setTarget("http://loinc.org");
+    SourceElementComponent source = new SourceElementComponent();
+    source.setCode("48765-2");
+    TargetElementComponent target = new TargetElementComponent();
+    target.setCode("48765-2");
+    target.setDisplay("Allergies &or adverse reactions");
+    target.setEquivalence(ConceptMapEquivalence.EQUIVALENT);
+    source.addTarget(target);
+    group.addElement(source);
     ConceptMap map = new ConceptMap();
-    map.addGroup(system);
-    CV cv = DatatypesFactory.eINSTANCE.createCV();
-    cv.setCode("29299-5");
-    cv.setCodeSystem("2.16.840.1.113883.6.1");
-    cv.setDisplayName("REASON FOR VISIT");
-    Coding coding = dtt.transformCV2Coding(cv, map);
-    assertEquals("http://loinc.org", coding.getSystem());
-    assertEquals("29299-5", coding.getCode());
-    assertEquals("REASON FOR VISIT", coding.getDisplay());
+    map.addGroup(group);
 
+    Coding coding = new Coding("urn:oid:2.16.840.1.113883.6.1","48765-2","");
+    Coding result = dtt.applyConceptMap(coding, map);
+    assertEquals("http://loinc.org",result.getSystem());
+    assertEquals("48765-2", result.getCode());
+    assertEquals("Allergies &or adverse reactions", result.getDisplay());
 
-    
   }
 
+  @Test
+  public void testApplyConceptMapCodeableConcept() {
+    ConceptMapGroupComponent group = new ConceptMapGroupComponent();
+    group.setSource("urn:oid:2.16.840.1.113883.6.1");
+    group.setTarget("http://loinc.org");
+    SourceElementComponent source = new SourceElementComponent();
+    source.setCode("48765-2");
+    TargetElementComponent target = new TargetElementComponent();
+    target.setCode("48765-2");
+    target.setDisplay("Allergies &or adverse reactions");
+    target.setEquivalence(ConceptMapEquivalence.EQUIVALENT);
+    source.addTarget(target);
+    group.addElement(source);
+    ConceptMap map = new ConceptMap();
+    map.addGroup(group);
+
+    CodeableConcept concept = new CodeableConcept();
+    concept.addCoding(new Coding("urn:oid:2.16.840.1.113883.6.1","48765-2",""));
+
+    CodeableConcept result = dtt.applyConceptMap(concept, map);
+
+    assertEquals("http://loinc.org",result.getCodingFirstRep().getSystem());
+    assertEquals("48765-2", result.getCodingFirstRep().getCode());
+    assertEquals("Allergies &or adverse reactions", result.getCodingFirstRep().getDisplay());
+
+  }
+
+  @Test
+  public void testApplyConceptMapString() {
+    ConceptMapGroupComponent group = new ConceptMapGroupComponent();
+    group.setSource("gender");
+    group.setTarget("gender");
+    SourceElementComponent source = new SourceElementComponent();
+    source.setCode("m");
+    source.addTarget(new TargetElementComponent().setCode("male"));
+    group.setUnmapped(
+          new ConceptMapGroupUnmappedComponent().setMode(ConceptMapGroupUnmappedMode.PROVIDED));
+    group.addElement(source);
+    ConceptMap map = new ConceptMap();
+    map.addGroup(group);
+    String result = dtt.applyConceptMap("m", map);
+    assertEquals("male", result);   
+
+  }
+
+  @Test
+  public void testApplyConceptMapStringUnmapped() {
+
+    ConceptMapGroupComponent group = new ConceptMapGroupComponent();
+    group.setSource("gender");
+    group.setTarget("gender");
+    SourceElementComponent source = new SourceElementComponent();
+    source.setCode("f");
+    source.addTarget(new TargetElementComponent().setCode("female"));
+    group.setUnmapped(
+          new ConceptMapGroupUnmappedComponent().setMode(ConceptMapGroupUnmappedMode.PROVIDED));
+    group.addElement(source);
+    ConceptMap map = new ConceptMap();
+    map.addGroup(group);
+    String result = dtt.applyConceptMap("m", map);
+    assertEquals("m", result);  
+  }
+
+  @Test
+  public void testApplyConceptMapStringFixedUnmapped() {
+    ConceptMapGroupComponent group = new ConceptMapGroupComponent();
+    group.setSource("gender");
+    group.setTarget("gender");
+    SourceElementComponent source = new SourceElementComponent();
+    source.setCode("f");
+    source.addTarget(new TargetElementComponent().setCode("female"));
+    group.setUnmapped(
+          new ConceptMapGroupUnmappedComponent()
+              .setMode(ConceptMapGroupUnmappedMode.FIXED)
+              .setCode("male"));
+    group.addElement(source);
+    ConceptMap map = new ConceptMap();
+    map.addGroup(group);
+    String result = dtt.applyConceptMap("m", map);
+    assertEquals("male", result);  
+  }
+
+  @Test
+  public void testTransformCD2CodeableConcept() {
+    ConceptMapGroupComponent group = new ConceptMapGroupComponent();
+    group.setSource("http://loinc.org");
+    group.setTarget("http://loinc.org");
+    SourceElementComponent source = new SourceElementComponent();
+    source.setCode("123456");
+    TargetElementComponent target = new TargetElementComponent();
+    target.setCode("48765-2");
+    target.setDisplay("Allergies &or adverse reactions");
+    target.setEquivalence(ConceptMapEquivalence.EQUIVALENT);
+    source.addTarget(target);
+    group.addElement(source);
+    ConceptMap map = new ConceptMap();
+    map.addGroup(group);
+
+    CD cd = DatatypesFactory.eINSTANCE.createCD();
+    cd.setCode("123456");
+    cd.setCodeSystem("2.16.840.1.113883.6.1");
+    cd.setDisplayName("TEST DISPLAY CODE");    
+
+    CodeableConcept result = dtt.transformCD2CodeableConcept(cd, true, map);
+    assertEquals("http://loinc.org", result.getCodingFirstRep().getSystem());
+    assertEquals("Allergies &or adverse reactions", result.getCodingFirstRep().getDisplay());
+    assertEquals("48765-2", result.getCodingFirstRep().getCode());
+  }
 
   // LocalTimeZone is used for the tests of TS2DateTime and TS2Instant
   private String getLocalTimeZoneString() {
