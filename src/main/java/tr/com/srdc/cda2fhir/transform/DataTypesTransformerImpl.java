@@ -527,7 +527,7 @@ public class DataTypesTransformerImpl implements IDataTypesTransformer, Serializ
    * @param map Concept Map
    * @return Human Name
    */
-  public HumanName tranformEN2HumanName(EN en, ConceptMap map) {
+  public HumanName transformEN2HumanName(EN en, ConceptMap map) {
     if (en == null || en.isSetNullFlavor()) {
       return null;
     }

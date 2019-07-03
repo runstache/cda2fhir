@@ -1,5 +1,7 @@
 package tr.com.srdc.cda2fhir.transform;
 
+import java.util.List;
+
 import org.hl7.fhir.dstu3.model.Address;
 import org.hl7.fhir.dstu3.model.Attachment;
 import org.hl7.fhir.dstu3.model.Base64BinaryType;
@@ -158,6 +160,14 @@ public interface IDataTypesTransformer {
   HumanName transformEN2HumanName(EN en);
 
   /**
+   * Tranforms a CDA EN Instance to a FHIR Human Name utilizing a Concept Map for Name Use.
+   * @param en CDA EN Entity
+   * @param map Concept Map to apply 
+   * @return Human Name
+   */
+  HumanName transformEN2HumanName(EN en, ConceptMap map);
+
+  /**
    * Transforms a CDA II instance to a FHIR IdentifierDt composite datatype
    * instance.
    * 
@@ -165,6 +175,14 @@ public interface IDataTypesTransformer {
    * @return A IdentifierDt composite datatype instance
    */
   Identifier transformII2Identifier(II ii);
+
+  /**
+   * Transforms a CDA II Entity to an Identifier utilizing Concept Maps for System, Type, and Use.
+   * @param ii CDA II Entity
+   * @param maps Concept Maps to apply.
+   * @return Identifier
+   */
+  Identifier transformII2Identifier(II ii, List<ConceptMap> maps);
 
   /**
    * Transforms a CDA INT instance to a FHIR IntegerDt primitive datatype
@@ -271,6 +289,14 @@ public interface IDataTypesTransformer {
    * @return A ContactPointDt composite datatype instance
    */
   ContactPoint transformTel2ContactPoint(TEL tel);
+
+  /**
+   * Transforms a CDA TEL Entity to a FHIR Contact Point utilizing Concept Maps for System and Use.
+   * @param tel CDA TEL Entity.
+   * @param maps Concept Maps to apply
+   * @return Contact Point
+   */
+  ContactPoint transformTel2ContactPoint(TEL tel, List<ConceptMap> maps);
 
   /**
    * Transforms a CDA TS instance to a FHIR DateDt primitive datatype instance.
