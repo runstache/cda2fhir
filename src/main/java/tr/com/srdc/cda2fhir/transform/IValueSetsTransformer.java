@@ -58,6 +58,19 @@ import org.openhealthtools.mdht.uml.hl7.vocab.TelecommunicationAddressUse;
 
 public interface IValueSetsTransformer {
 
+
+  /**
+   * Transforms a Cda Code Value to the Provided FHIR 
+   * Code/Coding/Codeable Concept utilizing a Concept Map.
+   * @param <T> Return Type (Code Enum/Coding/Codeable Concept)
+   * @param cdaCodeValue Cda Code value to transform.
+   * @param map Concept Map to apply
+   * @param clazz Return Class Type
+   * @return Code/Coding/Codeable Concept
+   */
+  <T> T transformCdaValueToFhirCodeValue(
+        final String cdaCodeValue, ConceptMap map, Class<T> clazz);
+
   /**
    * Transforms a CDA AdministrativeGenderCode string to a FHIR
    * AdministrativeGender.

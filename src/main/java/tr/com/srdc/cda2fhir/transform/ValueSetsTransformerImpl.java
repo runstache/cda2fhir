@@ -20,6 +20,9 @@ package tr.com.srdc.cda2fhir.transform;
  * #L%
  */
 import java.io.Serializable;
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
+import java.util.Optional;
 
 import org.hl7.fhir.dstu3.model.Address.AddressType;
 import org.hl7.fhir.dstu3.model.Address.AddressUse;
@@ -30,6 +33,7 @@ import org.hl7.fhir.dstu3.model.CodeableConcept;
 import org.hl7.fhir.dstu3.model.Coding;
 import org.hl7.fhir.dstu3.model.ConceptMap;
 import org.hl7.fhir.dstu3.model.ConceptMap.ConceptMapGroupComponent;
+import org.hl7.fhir.dstu3.model.ConceptMap.ConceptMapGroupUnmappedMode;
 import org.hl7.fhir.dstu3.model.ConceptMap.SourceElementComponent;
 import org.hl7.fhir.dstu3.model.ConceptMap.TargetElementComponent;
 import org.hl7.fhir.dstu3.model.Condition.ConditionClinicalStatus;
@@ -48,19 +52,22 @@ import org.hl7.fhir.dstu3.model.Procedure.ProcedureStatus;
 import org.hl7.fhir.dstu3.model.Timing.UnitsOfTime;
 
 import org.hl7.fhir.dstu3.model.codesystems.AllergyIntoleranceStatus;
-
+import org.hl7.fhir.exceptions.FHIRException;
 import org.openhealthtools.mdht.uml.hl7.datatypes.CD;
 import org.openhealthtools.mdht.uml.hl7.vocab.EntityClassRoot;
 import org.openhealthtools.mdht.uml.hl7.vocab.EntityNameUse;
 import org.openhealthtools.mdht.uml.hl7.vocab.NullFlavor;
 import org.openhealthtools.mdht.uml.hl7.vocab.PostalAddressUse;
 import org.openhealthtools.mdht.uml.hl7.vocab.TelecommunicationAddressUse;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import tr.com.srdc.cda2fhir.util.Constants;
 
 public class ValueSetsTransformerImpl implements IValueSetsTransformer, Serializable {
 
   public static final long serialVersionUID = 1L;
+  private static final Logger logger = LoggerFactory.getLogger(ValueSetsTransformerImpl.class);
 
   /**
    * Transforms a CDA Administrative Gender to a FHIR Administrative Gender.
@@ -76,8 +83,119 @@ public class ValueSetsTransformerImpl implements IValueSetsTransformer, Serializ
         return Enumerations.AdministrativeGender.UNKNOWN;
       default:
         return Enumerations.AdministrativeGender.UNKNOWN;
+
     }
   }
+
+  /**
+   * Transforms a Cda Code into the appropriate Code/Coding/Codeable Concept Value.
+   * @param <T> Class type to return
+   * @param cdaCodeValue Cda Code Value to transform
+   * @param map Concept Map to apply
+   * @param clazz Return type requested
+   * @return Object of type provided.
+   */
+  public <T> T transformCdaValueToFhirCodeValue(
+        final String cdaCodeValue, ConceptMap map, Class<T> clazz) {
+    if (clazz.getSimpleName().equalsIgnoreCase("coding")) {
+      //Create a Coding Element based on the Concept Map  
+      Coding coding = new Coding();
+      ConceptMapGroupComponent group = map.getGroupFirstRep();
+      if (group != null) {
+        if (group.hasTarget()) {
+          coding.setSystem(group.getTarget());
+        }
+        if (group.hasTargetVersion()) {
+          coding.setVersion(group.getTargetVersion());
+        }
+        Optional<SourceElementComponent> source = 
+            group.getElement()
+                .stream()
+                .filter(c -> c.getCode().equalsIgnoreCase(cdaCodeValue))
+                .findFirst();
+        if (source.isPresent()) {
+          TargetElementComponent target = source.get().getTargetFirstRep();
+          if (target != null) {
+            if (target.hasCode()) {
+              coding.setCode(target.getCode());
+            }
+            if (target.hasDisplay()) {
+              coding.setDisplay(target.getDisplay());
+            }
+            
+          }
+        } else {
+          //Checked for Unmapped
+          if (group.getUnmapped() != null 
+              && group.getUnmapped().hasMode() 
+              && group.getUnmapped().getMode().equals(ConceptMapGroupUnmappedMode.FIXED)) {
+            if (group.getUnmapped().hasCode()) {
+              coding.setCode(group.getUnmapped().getCode());
+            }
+            if (group.getUnmapped().hasDisplay()) {
+              coding.setDisplay(group.getUnmapped().getDisplay());              
+            }                        
+          }
+        }
+        return clazz.cast(coding);
+      } 
+      return null;      
+    } else if (clazz.getSimpleName().equalsIgnoreCase("codeableconcept")) {
+      //Create a Codeable Concept from the Code Value based on the Map.
+      Coding coding = transformCdaValueToFhirCodeValue(cdaCodeValue, map, Coding.class);
+      if (coding != null) {
+        return clazz.cast(new CodeableConcept().addCoding(coding));
+      } else {
+        return null;
+      }
+    } else {
+      //evaluate as an Enumerated Code.
+      for (ConceptMapGroupComponent group : map.getGroup()) {        
+        Optional<SourceElementComponent> source = 
+            group.getElement()
+                .stream()
+                .filter(c -> c.getCode().equalsIgnoreCase(cdaCodeValue))
+                .findFirst();
+        String mapValue = "";
+
+        if (source.isPresent()) {
+          TargetElementComponent target = source.get().getTargetFirstRep();
+          if (target != null) {
+            mapValue = target.getCode();
+          }        
+        } else {
+          //Check for Unmapped.
+          if (group.getUnmapped() != null 
+              && group.getUnmapped().getMode().equals(ConceptMapGroupUnmappedMode.FIXED) 
+              && group.getUnmapped().hasCode()) {
+            mapValue = group.getUnmapped().getCode();
+          }
+        }
+        if (mapValue != null && !mapValue.equals("")) {
+          Method[] methods = clazz.getMethods();
+          for (int i = 0; i < methods.length; i++) {
+            Method method = methods[i];
+            if (method.getName().equalsIgnoreCase("fromcode")) {
+              try {              
+                return clazz.cast(method.invoke(null, mapValue));
+              }  catch (IllegalAccessException ex) {
+                logger.error("Unable to access Instance of provided class " 
+                    + clazz.getName() + " when transforming Cda Code.");
+              } catch (FHIRException ex) {
+                logger.error("Failed to convert Cda Code: " + ex.getMessage());
+              } catch (InvocationTargetException ex) {
+                logger.error("Failed to convert Cda Code: " + ex.getMessage());
+              }
+              break;
+            }
+          }
+        }
+        break;
+      }
+    }
+    return null;
+  }
+  
 
   /**
    * Converts Cda Observation Unit to Age Unit.

@@ -1,6 +1,7 @@
 package tr.com.srdc.cda2fhir.transform;
 
 import java.io.Serializable;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
@@ -12,6 +13,7 @@ import org.hl7.fhir.dstu3.model.Bundle.BundleType;
 import org.hl7.fhir.dstu3.model.Bundle.HTTPVerb;
 import org.hl7.fhir.dstu3.model.Composition;
 import org.hl7.fhir.dstu3.model.Composition.SectionComponent;
+import org.hl7.fhir.dstu3.model.ConceptMap;
 import org.hl7.fhir.dstu3.model.Condition;
 import org.hl7.fhir.dstu3.model.Device;
 import org.hl7.fhir.dstu3.model.DiagnosticReport;
@@ -78,16 +80,6 @@ import tr.com.srdc.cda2fhir.util.IdGeneratorEnum;
  * See the License for the specific language governing permissions and
  * limitations under the License.
  * #L%
-
-
-import ca.uhn.fhir.model.dstu2.resource.*;
-import ca.uhn.fhir.model.dstu2.resource.Bundle.Entry;
-import ca.uhn.fhir.model.dstu2.resource.Device;
-import ca.uhn.fhir.model.dstu2.resource.Encounter;
-import ca.uhn.fhir.model.dstu2.resource.Observation;
-import ca.uhn.fhir.model.dstu2.resource.Procedure;
-import ca.uhn.fhir.model.dstu2.valueset.BundleTypeEnum;
-import ca.uhn.fhir.model.dstu2.valueset.HTTPVerbEnum;
  */
 
 public class CcdTransformerImpl implements ICdaTransformer, Serializable {
@@ -182,8 +174,8 @@ public class CcdTransformerImpl implements ICdaTransformer, Serializable {
             // if resourceProfileMap is specified omit the resources with no profiles given
             // Empty profileUri means add with no change
             if (resourceProfileMap != null) {
-              String profileUri = resourceProfileMap.get(
-                    entry.getResource().getResourceType().name());
+              String profileUri = 
+                  resourceProfileMap.get(entry.getResource().getResourceType().name());
               if (profileUri != null) {
                 if (!profileUri.isEmpty()) {
                   entry.getResource().getMeta().addProfile(profileUri);
@@ -223,8 +215,8 @@ public class CcdTransformerImpl implements ICdaTransformer, Serializable {
     try {
       ccd = (ContinuityOfCareDocument) cda;
     } catch (ClassCastException ex) {
-      logger.error(
-            "ClinicalDocument could not be cast to ContinuityOfCareDocument. Returning null", ex);
+      logger.error("ClinicalDocument could not be cast to" 
+          + " ContinuityOfCareDocument. Returning null", ex);
       return null;
     }
 
@@ -276,10 +268,10 @@ public class CcdTransformerImpl implements ICdaTransformer, Serializable {
         }
       } else if (cdaSec instanceof FunctionalStatusSection) {
         FunctionalStatusSection funcSec = (FunctionalStatusSection) cdaSec;
-        for (FunctionalStatusResultOrganizer funcOrganizer 
-            : funcSec.getFunctionalStatusResultOrganizers()) {
-          for (org.openhealthtools.mdht.uml.cda.Observation funcObservation 
-              : funcOrganizer.getObservations()) {
+        for (FunctionalStatusResultOrganizer funcOrganizer : 
+            funcSec.getFunctionalStatusResultOrganizers()) {
+          for (org.openhealthtools.mdht.uml.cda.Observation funcObservation : 
+              funcOrganizer.getObservations()) {
             Bundle funcBundle = 
                 resTransformer.transformFunctionalStatus2Observation(funcObservation);
             mergeBundles(funcBundle, ccdBundle, fhirSec, Observation.class);
@@ -294,8 +286,8 @@ public class CcdTransformerImpl implements ICdaTransformer, Serializable {
       } else if (cdaSec instanceof MedicalEquipmentSection) {
         MedicalEquipmentSection equipSec = (MedicalEquipmentSection) cdaSec;
         // Case 1: Entry is a Non-Medicinal Supply Activity (V2)
-        for (NonMedicinalSupplyActivity supplyActivity 
-            : equipSec.getNonMedicinalSupplyActivities()) {
+        for (NonMedicinalSupplyActivity supplyActivity : 
+            equipSec.getNonMedicinalSupplyActivities()) {
           Device fhirDevice = resTransformer.transformSupply2Device(supplyActivity);
           Reference ref = fhirSec.addEntry();
           ref.setReference(fhirDevice.getId());
@@ -423,5 +415,10 @@ public class CcdTransformerImpl implements ICdaTransformer, Serializable {
     request.setMethod(HTTPVerb.POST);
     request.setUrl(entry.getResource().getResourceType().name());
     entry.setRequest(request);
+  }
+
+  @Override
+  public Bundle tranformDocument(ClinicalDocument cda, List<ConceptMap> maps) {
+    return null;
   }
 }

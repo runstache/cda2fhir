@@ -25,11 +25,13 @@ import ca.uhn.fhir.parser.DataFormatException;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import java.util.TimeZone;
 
 import org.eclipse.emf.ecore.impl.EStructuralFeatureImpl;
 import org.eclipse.emf.ecore.util.BasicFeatureMap;
 import org.eclipse.emf.ecore.util.FeatureMap;
+
 import org.hl7.fhir.dstu3.model.Address;
 import org.hl7.fhir.dstu3.model.Attachment;
 import org.hl7.fhir.dstu3.model.Base64BinaryType;
@@ -37,13 +39,17 @@ import org.hl7.fhir.dstu3.model.BaseDateTimeType;
 import org.hl7.fhir.dstu3.model.BooleanType;
 import org.hl7.fhir.dstu3.model.CodeableConcept;
 import org.hl7.fhir.dstu3.model.Coding;
+import org.hl7.fhir.dstu3.model.ConceptMap;
 import org.hl7.fhir.dstu3.model.ContactPoint;
 import org.hl7.fhir.dstu3.model.ContactPoint.ContactPointSystem;
+import org.hl7.fhir.dstu3.model.ContactPoint.ContactPointUse;
 import org.hl7.fhir.dstu3.model.DateTimeType;
 import org.hl7.fhir.dstu3.model.DateType;
 import org.hl7.fhir.dstu3.model.DecimalType;
 import org.hl7.fhir.dstu3.model.HumanName;
+import org.hl7.fhir.dstu3.model.HumanName.NameUse;
 import org.hl7.fhir.dstu3.model.Identifier;
+import org.hl7.fhir.dstu3.model.Identifier.IdentifierUse;
 import org.hl7.fhir.dstu3.model.InstantType;
 import org.hl7.fhir.dstu3.model.IntegerType;
 import org.hl7.fhir.dstu3.model.Narrative;
@@ -57,6 +63,7 @@ import org.hl7.fhir.dstu3.model.StringType;
 import org.hl7.fhir.dstu3.model.Timing;
 import org.hl7.fhir.dstu3.model.Timing.TimingRepeatComponent;
 import org.hl7.fhir.dstu3.model.UriType;
+
 import org.openhealthtools.mdht.uml.cda.StrucDocText;
 import org.openhealthtools.mdht.uml.hl7.datatypes.AD;
 import org.openhealthtools.mdht.uml.hl7.datatypes.ADXP;
@@ -296,13 +303,33 @@ public class DataTypesTransformerImpl implements IDataTypesTransformer, Serializ
   }
 
   /**
+   * Transforms a CDA CD Element into a Codeable Concept.
+   */
+  public CodeableConcept transformCD2CodeableConcept(CD cd, 
+      boolean includeTranslations, ConceptMap map) {
+    CodeableConcept concept = 
+        vst.transformCdaValueToFhirCodeValue(cd.getCode(), map, CodeableConcept.class);
+    if (concept != null) {
+      if (includeTranslations) {
+        for (CD trans : cd.getTranslations()) {
+          Coding coding = vst.transformCdaValueToFhirCodeValue(trans.getCode(), map, Coding.class);
+          if (coding != null) {
+            concept.addCoding(coding);
+          }
+        }
+      }
+    }
+    return concept;
+  }
+
+  /**
    * Transforms CDA CD to Codeable Concept.
    */
   public CodeableConcept transformCD2CodeableConceptExcludingTranslations(CD cd) {
     if (cd == null || cd.isSetNullFlavor()) {
-      return null;
+      return null;      
     }
-
+    
     CodeableConcept myCodeableConcept = new CodeableConcept();
 
     // .
@@ -372,6 +399,21 @@ public class DataTypesTransformerImpl implements IDataTypesTransformer, Serializ
     if (cv.getDisplayName() != null && !cv.getDisplayName().isEmpty()) {
       coding.setDisplay(cv.getDisplayName());
     }
+    return coding;
+  }
+
+  /**
+   * Transforms a CDA CV Section to a Coding Value using a Concept Map.
+   * @param cv CDA CV Item
+   * @param map Concept Maps to apply.
+   * @return FHIR Coding
+   */
+  public Coding transformCV2Coding(CV cv, ConceptMap map) {
+
+    if (cv == null || cv.isSetNullFlavor()) {
+      return null;
+    }
+    Coding coding = vst.transformCdaValueToFhirCodeValue(cv.getCode(), map, Coding.class);
     return coding;
   }
 
@@ -480,6 +522,70 @@ public class DataTypesTransformerImpl implements IDataTypesTransformer, Serializ
   }
 
   /**
+   * Transforms a EN Entity to a Human Name and applies a Concept Map for the Use.
+   * @param en CDA EN Entitiy.
+   * @param map Concept Map
+   * @return Human Name
+   */
+  public HumanName transformEN2HumanName(EN en, ConceptMap map) {
+    if (en == null || en.isSetNullFlavor()) {
+      return null;
+    }
+
+    HumanName name = new HumanName();
+    // text -> text
+    if (en.getText() != null && !en.getText().isEmpty()) {
+      name.setText(en.getText());
+    }
+
+    // use -> use
+    if (en.getUses() != null && !en.getUses().isEmpty()) {
+      for (EntityNameUse entityNameUse : en.getUses()) {
+        if (entityNameUse != null) {
+          name.setUse(
+                vst.transformCdaValueToFhirCodeValue(entityNameUse.toString(), map, NameUse.class));
+        }
+      }
+    }
+
+    // family -> family
+    if (en.getFamilies() != null && !en.getFamilies().isEmpty()) {
+      for (ENXP family : en.getFamilies()) {
+        name.setFamily(family.getText());
+      }
+    }
+
+    // given -> given
+    if (en.getGivens() != null && !en.getGivens().isEmpty()) {
+      for (ENXP given : en.getGivens()) {
+        name.addGiven(given.getText());
+      }
+    }
+
+    // prefix -> prefix
+    if (en.getPrefixes() != null && !en.getPrefixes().isEmpty()) {
+      for (ENXP prefix : en.getPrefixes()) {
+        name.addPrefix(prefix.getText());
+      }
+    }
+
+    // suffix -> suffix
+    if (en.getSuffixes() != null && !en.getSuffixes().isEmpty()) {
+      for (ENXP suffix : en.getSuffixes()) {
+        name.addSuffix(suffix.getText());
+      }
+    }
+
+    // validTime -> period
+    if (en.getValidTime() != null && !en.getValidTime().isSetNullFlavor()) {
+      name.setPeriod(transformIvl_TS2Period(en.getValidTime()));
+    }
+
+    return name;
+
+  }
+
+  /**
    * Transforms a CDA II Entity to an Identifier.
    * @param ii CDA II Entity.
    * @return Identifier
@@ -519,6 +625,47 @@ public class DataTypesTransformerImpl implements IDataTypesTransformer, Serializ
     }
     return identifier;
 
+  }
+
+  /**
+   * Transforms an II CDA Entitiy into a FHIR Identifier utilizing Concept Maps.
+   * @param ii CDA II Entity
+   * @param maps Concept Maps to use.
+   * @return Identifier.
+   */
+  public Identifier transformII2Identifier(II ii, List<ConceptMap> maps) {
+    Identifier id = new Identifier();
+    Optional<ConceptMap> useMap = 
+        maps.stream()
+          .filter(c -> c.getIdentifier().getValue().contains("identifier.use"))
+          .findFirst();
+    if (useMap.isPresent()) {
+      id.setUse(vst.transformCdaValueToFhirCodeValue("", useMap.get(), IdentifierUse.class));
+    } 
+
+    Optional<ConceptMap> typeMap = 
+        maps.stream()
+            .filter(c -> c.getIdentifier().getValue().contains("identifier.type"))
+            .findFirst();
+    if (typeMap.isPresent()) {
+      id.setType(vst.transformCdaValueToFhirCodeValue("", typeMap.get(), CodeableConcept.class));
+    }
+
+    if (ii.getRoot() != null && !ii.getRoot().isEmpty()) {
+      Optional<ConceptMap> systemMap = 
+          maps.stream()
+            .filter(c -> c.getIdentifier().getValue().contains("identifier.system")).findFirst();
+      if (systemMap.isPresent()) {
+        id.setSystem(
+              vst.transformCdaValueToFhirCodeValue(ii.getRoot(), systemMap.get(), String.class));
+      } else {
+        id.setSystem(ii.getRoot());
+      }
+    }
+    if (ii.getExtension() != null && !ii.getExtension().isEmpty()) {
+      id.setValue(ii.getExtension());
+    }
+    return id;
   }
 
   /**
@@ -858,6 +1005,98 @@ public class DataTypesTransformerImpl implements IDataTypesTransformer, Serializ
 
     // use -> use
     if (tel.getUses() != null && !tel.getUses().isEmpty()) {
+      for (TelecommunicationAddressUse telAddressUse : tel.getUses()) {
+        if (telAddressUse != null) {
+          contactPoint.setUse(
+                vst.transformTelecommunicationAddressUse2ContactPointUse(telAddressUse));
+        }
+      }
+    }
+    return contactPoint;
+  }
+
+  /**
+   * Transforms a CDA TEL Entity into a Contact Point using a Concept Maps for Use and Type.
+   * @param tel CDA TEL Entitiy
+   * @param maps Concept Maps to use
+   * @return Contact Point
+   */
+  public ContactPoint transformTel2ContactPoint(TEL tel, List<ConceptMap> maps) {
+    if (tel == null || tel.isSetNullFlavor()) {
+      return null;
+    }
+
+    ContactPoint contactPoint = new ContactPoint();
+
+    // value and system -> value
+    if (tel.getValue() != null && !tel.getValue().isEmpty()) {
+      String value = tel.getValue();
+      String[] systemType = value.split(":");
+
+      String contactSystem = "";
+      String contactValue = "";
+
+      if (systemType.length > 1) {
+        contactSystem = systemType[0];
+        contactValue = systemType[1];
+      } else if (systemType.length == 1) {
+        contactSystem = Config.DEFAULT_CONTACT_POINT_SYSTEM.toString();
+        contactValue = systemType[0];
+      }
+      Optional<ConceptMap> systemMap = 
+          maps.stream()
+            .filter(c -> c.getIdentifier().getValue().contains("contactpoint.system"))
+            .findFirst();
+      if (systemMap.isPresent()) {
+        contactPoint.setSystem(
+              vst.transformCdaValueToFhirCodeValue(
+                contactSystem, systemMap.get(), ContactPointSystem.class));
+      } else {
+        ContactPointSystem contactPointSystem = 
+              vst.transformTelValue2ContactPointSystem(contactSystem);
+        contactPoint.setSystem(contactPointSystem);
+      }
+      contactPoint.setValue(contactValue);
+    }
+
+    // useablePeriods -> period
+    if (tel.getUseablePeriods() != null && !tel.getUseablePeriods().isEmpty()) {
+      Period period = new Period();
+      int sxcmCounter = 0;
+      for (SXCM_TS sxcmts : tel.getUseablePeriods()) {
+        if (sxcmts != null && !sxcmts.isSetNullFlavor()) {
+          // useablePeriods[0] -> period.start
+          // useablePeriods[1] -> period.end
+          if (sxcmCounter == 0) {
+            if (sxcmts.getValue() != null && !sxcmts.getValue().isEmpty()) {
+              period.setStartElement(transformString2DateTime(sxcmts.getValue()));
+            }
+          } else if (sxcmCounter == 1) {
+            if (sxcmts.getValue() != null && !sxcmts.getValue().isEmpty()) {
+              period.setEndElement(transformString2DateTime(sxcmts.getValue()));
+            }
+          }
+          sxcmCounter++;
+        }
+      }
+      contactPoint.setPeriod(period);
+    }
+
+    // use -> use
+    if (tel.getUses() != null && !tel.getUses().isEmpty()) {
+      Optional<ConceptMap> useMap = 
+          maps.stream()
+            .filter(c -> c.getIdentifier().getValue().contains("contactpoint.use")).findFirst();
+      for (TelecommunicationAddressUse telAddressUse : tel.getUses()) {
+        if (useMap.isPresent()) {
+          contactPoint.setUse(
+                vst.transformCdaValueToFhirCodeValue(
+                    telAddressUse.getLiteral(), useMap.get(), ContactPointUse.class));
+        } else {
+          contactPoint.setUse(
+                vst.transformTelecommunicationAddressUse2ContactPointUse(telAddressUse));
+        }
+      }
       for (TelecommunicationAddressUse telAddressUse : tel.getUses()) {
         if (telAddressUse != null) {
           contactPoint.setUse(

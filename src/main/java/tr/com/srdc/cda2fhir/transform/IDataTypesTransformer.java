@@ -1,11 +1,14 @@
 package tr.com.srdc.cda2fhir.transform;
 
+import java.util.List;
+
 import org.hl7.fhir.dstu3.model.Address;
 import org.hl7.fhir.dstu3.model.Attachment;
 import org.hl7.fhir.dstu3.model.Base64BinaryType;
 import org.hl7.fhir.dstu3.model.BooleanType;
 import org.hl7.fhir.dstu3.model.CodeableConcept;
 import org.hl7.fhir.dstu3.model.Coding;
+import org.hl7.fhir.dstu3.model.ConceptMap;
 import org.hl7.fhir.dstu3.model.ContactPoint;
 import org.hl7.fhir.dstu3.model.DateTimeType;
 import org.hl7.fhir.dstu3.model.DateType;
@@ -101,6 +104,16 @@ public interface IDataTypesTransformer {
   CodeableConcept transformCD2CodeableConcept(CD cd);
 
   /**
+   * Transforms a CDA CD Instance to a FHIR Codeable Concept 
+   * utilizing a Concept Map for any Coding values.
+   * @param cd CDA CD instance
+   * @param includeTranslations Boolean flag to include the Translations in the coding.
+   * @param map Concept Map to apply.
+   * @return CodeableConcept.
+   */
+  CodeableConcept transformCD2CodeableConcept(CD cd, boolean includeTranslations, ConceptMap map);
+
+  /**
    * Transforms a CDA CD instance to a FHIR CodeableConceptDt composite datatype
    * instance. Translations of the CD instance are excluded.
    * 
@@ -108,6 +121,8 @@ public interface IDataTypesTransformer {
    * @return A CodeableConceptDt composite datatype instance
    */
   CodeableConcept transformCD2CodeableConceptExcludingTranslations(CD cd);
+
+
 
   /**
    * Transforms a CDA CV instance to a FHIR CodingDt composite datatype instance.
@@ -117,6 +132,15 @@ public interface IDataTypesTransformer {
    */
   Coding transformCV2Coding(CV cv);
 
+  /**
+   * Transforms a CDA CV instance to a FHIR CodingDt composite datatype instance.
+   * @param cv A CDA CV Instance
+   * @param map A ConceptMap to apply to the CV Element.
+   * @return A FHIR Coding
+   */
+  Coding transformCV2Coding(CV cv, ConceptMap map);
+
+ 
   /**
    * Transforms a CDA ED instance to a FHIR AttachmentDt composite datatype
    * instance.
@@ -136,6 +160,14 @@ public interface IDataTypesTransformer {
   HumanName transformEN2HumanName(EN en);
 
   /**
+   * Tranforms a CDA EN Instance to a FHIR Human Name utilizing a Concept Map for Name Use.
+   * @param en CDA EN Entity
+   * @param map Concept Map to apply 
+   * @return Human Name
+   */
+  HumanName transformEN2HumanName(EN en, ConceptMap map);
+
+  /**
    * Transforms a CDA II instance to a FHIR IdentifierDt composite datatype
    * instance.
    * 
@@ -143,6 +175,14 @@ public interface IDataTypesTransformer {
    * @return A IdentifierDt composite datatype instance
    */
   Identifier transformII2Identifier(II ii);
+
+  /**
+   * Transforms a CDA II Entity to an Identifier utilizing Concept Maps for System, Type, and Use.
+   * @param ii CDA II Entity
+   * @param maps Concept Maps to apply.
+   * @return Identifier
+   */
+  Identifier transformII2Identifier(II ii, List<ConceptMap> maps);
 
   /**
    * Transforms a CDA INT instance to a FHIR IntegerDt primitive datatype
@@ -249,6 +289,14 @@ public interface IDataTypesTransformer {
    * @return A ContactPointDt composite datatype instance
    */
   ContactPoint transformTel2ContactPoint(TEL tel);
+
+  /**
+   * Transforms a CDA TEL Entity to a FHIR Contact Point utilizing Concept Maps for System and Use.
+   * @param tel CDA TEL Entity.
+   * @param maps Concept Maps to apply
+   * @return Contact Point
+   */
+  ContactPoint transformTel2ContactPoint(TEL tel, List<ConceptMap> maps);
 
   /**
    * Transforms a CDA TS instance to a FHIR DateDt primitive datatype instance.

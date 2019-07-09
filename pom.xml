@@ -83,7 +83,7 @@
             <artifactId>logback-classic</artifactId>
             <version>1.1.7</version>
         </dependency>
-        <!-- Official HL7 FHIR Validator. This is ugly but it is not available in any maven repo -->
+        <!-- Official HL7 FHIR Validator. This is ugly but it is not available in any maven repo 
         <dependency>
             <groupId>org.hl7.fhir</groupId>
             <artifactId>validator</artifactId>
@@ -91,5 +91,6 @@
             <scope>system</scope>
             <systemPath>${project.basedir}/lib/org.hl7.fhir.validator.jar</systemPath>
         </dependency>
+        -->
     </dependencies>
 </project>
