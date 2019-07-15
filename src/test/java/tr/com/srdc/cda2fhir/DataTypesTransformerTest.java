@@ -32,8 +32,6 @@ import org.hl7.fhir.dstu3.model.CodeableConcept;
 import org.hl7.fhir.dstu3.model.Coding;
 import org.hl7.fhir.dstu3.model.ConceptMap;
 import org.hl7.fhir.dstu3.model.ConceptMap.ConceptMapGroupComponent;
-import org.hl7.fhir.dstu3.model.ConceptMap.ConceptMapGroupUnmappedComponent;
-import org.hl7.fhir.dstu3.model.ConceptMap.ConceptMapGroupUnmappedMode;
 import org.hl7.fhir.dstu3.model.ConceptMap.SourceElementComponent;
 import org.hl7.fhir.dstu3.model.ConceptMap.TargetElementComponent;
 
@@ -995,112 +993,6 @@ public class DataTypesTransformerTest {
     Assert.assertEquals("TS.value was not transformed", 
         "2013-05-14T13:17:19" + getLocalTimeZoneString(),
         instant10.getValueAsString());
-  }
-
-  @Test
-  public void testApplyConceptMapCoding() {
-    ConceptMapGroupComponent group = new ConceptMapGroupComponent();
-    group.setSource("urn:oid:2.16.840.1.113883.6.1");
-    group.setTarget("http://loinc.org");
-    SourceElementComponent source = new SourceElementComponent();
-    source.setCode("48765-2");
-    TargetElementComponent target = new TargetElementComponent();
-    target.setCode("48765-2");
-    target.setDisplay("Allergies &or adverse reactions");
-    target.setEquivalence(ConceptMapEquivalence.EQUIVALENT);
-    source.addTarget(target);
-    group.addElement(source);
-    ConceptMap map = new ConceptMap();
-    map.addGroup(group);
-
-    Coding coding = new Coding("urn:oid:2.16.840.1.113883.6.1","48765-2","");
-    Coding result = dtt.applyConceptMap(coding, map);
-    assertEquals("http://loinc.org",result.getSystem());
-    assertEquals("48765-2", result.getCode());
-    assertEquals("Allergies &or adverse reactions", result.getDisplay());
-
-  }
-
-  @Test
-  public void testApplyConceptMapCodeableConcept() {
-    ConceptMapGroupComponent group = new ConceptMapGroupComponent();
-    group.setSource("urn:oid:2.16.840.1.113883.6.1");
-    group.setTarget("http://loinc.org");
-    SourceElementComponent source = new SourceElementComponent();
-    source.setCode("48765-2");
-    TargetElementComponent target = new TargetElementComponent();
-    target.setCode("48765-2");
-    target.setDisplay("Allergies &or adverse reactions");
-    target.setEquivalence(ConceptMapEquivalence.EQUIVALENT);
-    source.addTarget(target);
-    group.addElement(source);
-    ConceptMap map = new ConceptMap();
-    map.addGroup(group);
-
-    CodeableConcept concept = new CodeableConcept();
-    concept.addCoding(new Coding("urn:oid:2.16.840.1.113883.6.1","48765-2",""));
-
-    CodeableConcept result = dtt.applyConceptMap(concept, map);
-
-    assertEquals("http://loinc.org",result.getCodingFirstRep().getSystem());
-    assertEquals("48765-2", result.getCodingFirstRep().getCode());
-    assertEquals("Allergies &or adverse reactions", result.getCodingFirstRep().getDisplay());
-
-  }
-
-  @Test
-  public void testApplyConceptMapString() {
-    ConceptMapGroupComponent group = new ConceptMapGroupComponent();
-    group.setSource("gender");
-    group.setTarget("gender");
-    SourceElementComponent source = new SourceElementComponent();
-    source.setCode("m");
-    source.addTarget(new TargetElementComponent().setCode("male"));
-    group.setUnmapped(
-          new ConceptMapGroupUnmappedComponent().setMode(ConceptMapGroupUnmappedMode.PROVIDED));
-    group.addElement(source);
-    ConceptMap map = new ConceptMap();
-    map.addGroup(group);
-    String result = dtt.applyConceptMap("m", map);
-    assertEquals("male", result);   
-
-  }
-
-  @Test
-  public void testApplyConceptMapStringUnmapped() {
-
-    ConceptMapGroupComponent group = new ConceptMapGroupComponent();
-    group.setSource("gender");
-    group.setTarget("gender");
-    SourceElementComponent source = new SourceElementComponent();
-    source.setCode("f");
-    source.addTarget(new TargetElementComponent().setCode("female"));
-    group.setUnmapped(
-          new ConceptMapGroupUnmappedComponent().setMode(ConceptMapGroupUnmappedMode.PROVIDED));
-    group.addElement(source);
-    ConceptMap map = new ConceptMap();
-    map.addGroup(group);
-    String result = dtt.applyConceptMap("m", map);
-    assertEquals("m", result);  
-  }
-
-  @Test
-  public void testApplyConceptMapStringFixedUnmapped() {
-    ConceptMapGroupComponent group = new ConceptMapGroupComponent();
-    group.setSource("gender");
-    group.setTarget("gender");
-    SourceElementComponent source = new SourceElementComponent();
-    source.setCode("f");
-    source.addTarget(new TargetElementComponent().setCode("female"));
-    group.setUnmapped(
-          new ConceptMapGroupUnmappedComponent()
-              .setMode(ConceptMapGroupUnmappedMode.FIXED)
-              .setCode("male"));
-    group.addElement(source);
-    ConceptMap map = new ConceptMap();
-    map.addGroup(group);
-    String result = dtt.applyConceptMap("m", map);
-    assertEquals("male", result);  
   }
 
   @Test
