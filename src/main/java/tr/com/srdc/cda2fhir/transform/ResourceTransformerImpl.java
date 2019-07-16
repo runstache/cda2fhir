@@ -44,6 +44,7 @@ import org.hl7.fhir.dstu3.model.DiagnosticReport;
 import org.hl7.fhir.dstu3.model.DiagnosticReport.DiagnosticReportPerformerComponent;
 import org.hl7.fhir.dstu3.model.Dosage;
 import org.hl7.fhir.dstu3.model.Encounter;
+import org.hl7.fhir.dstu3.model.Encounter.DiagnosisComponent;
 import org.hl7.fhir.dstu3.model.Encounter.EncounterParticipantComponent;
 import org.hl7.fhir.dstu3.model.Enumerations;
 import org.hl7.fhir.dstu3.model.Extension;
@@ -1017,19 +1018,19 @@ public class ResourceTransformerImpl implements IResourceTransformer, Serializab
     // entryRelationship[@typeCode='RSON'].observation[Indication] -> indication
     if (cdaEncounter.getEntryRelationships() != null 
         && !cdaEncounter.getEntryRelationships().isEmpty()) {
+      int ranking = 1;
       for (EntryRelationship entryRelShip : cdaEncounter.getEntryRelationships()) {
         if (entryRelShip != null && !entryRelShip.isSetNullFlavor()) {
           if (entryRelShip.getObservation() != null && !entryRelShip.isSetNullFlavor()) {
             if (entryRelShip.getObservation() instanceof Indication) {
               Indication cdaIndication = (Indication) entryRelShip.getObservation();
-              Condition fhirIndication = transformIndication2Condition(cdaIndication);
-              //TODO: Update this Section to keep the Condition seperate 
-              //or create a Diagnosis Component.
-              /*
-              fhirEncounterBundle.addEntry(new BundleEntryComponent().setResource(fhirIndication));
-              Reference indicationRef = fhirEncounter.addIndication();
-              indicationRef.setReference(fhirIndication.getId());
-              */
+              Condition fhirCondition = transformIndication2Condition(cdaIndication);
+              DiagnosisComponent component = new DiagnosisComponent();
+              component.setRank(ranking);
+              component.setCondition(new Reference(fhirCondition.getId()));
+              ranking++;
+              fhirEncounter.addDiagnosis(component);
+              fhirEncounterBundle.addEntry(new BundleEntryComponent().setResource(fhirEncounter));
             }
           }
         }
