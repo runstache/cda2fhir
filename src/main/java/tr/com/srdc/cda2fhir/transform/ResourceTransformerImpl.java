@@ -1028,9 +1028,9 @@ public class ResourceTransformerImpl implements IResourceTransformer, Serializab
               DiagnosisComponent component = new DiagnosisComponent();
               component.setRank(ranking);
               component.setCondition(new Reference(fhirCondition.getId()));
-              ranking++;
               fhirEncounter.addDiagnosis(component);
-              fhirEncounterBundle.addEntry(new BundleEntryComponent().setResource(fhirEncounter));
+              fhirEncounterBundle.addEntry(new BundleEntryComponent().setResource(fhirCondition));
+              ranking++;
             }
           }
         }
@@ -1162,16 +1162,17 @@ public class ResourceTransformerImpl implements IResourceTransformer, Serializab
     }
 
     // indication -> indication
+    int ranking = 1;
     for (Indication cdaIndication : cdaEncounterActivity.getIndications()) {
       if (!cdaIndication.isSetNullFlavor()) {
-        Condition fhirIndication = transformIndication2Condition(cdaIndication);
-        fhirEncounterBundle.addEntry(new BundleEntryComponent().setResource(fhirIndication));
-        //TODO: Will need to figure out whether to map this to a 
-        // Diagnosis component or a Condition with reference to the Encounter.
-        /*
-        Reference indicationRef = fhirEncounter.addIndication();
-        indicationRef.setReference(fhirIndication.getId());
-        */
+        Condition fhirCondition = transformIndication2Condition(cdaIndication);
+        fhirEncounterBundle.addEntry(new BundleEntryComponent().setResource(fhirCondition));
+
+        DiagnosisComponent component = new DiagnosisComponent();
+        component.setRank(ranking);
+        component.setCondition(new Reference(fhirCondition.getId()));
+        fhirEncounter.addDiagnosis(component);
+        ranking++;
       }
     }
 
