@@ -21,6 +21,8 @@ package tr.com.srdc.cda2fhir.transform;
  */
 
 import java.io.Serializable;
+import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 import org.hl7.fhir.dstu3.model.Age;
@@ -37,6 +39,7 @@ import org.hl7.fhir.dstu3.model.Composition.CompositionAttestationMode;
 import org.hl7.fhir.dstu3.model.Composition.CompositionAttesterComponent;
 import org.hl7.fhir.dstu3.model.Composition.DocumentConfidentiality;
 import org.hl7.fhir.dstu3.model.Composition.SectionComponent;
+import org.hl7.fhir.dstu3.model.ConceptMap;
 import org.hl7.fhir.dstu3.model.Condition;
 import org.hl7.fhir.dstu3.model.Condition.ConditionClinicalStatus;
 import org.hl7.fhir.dstu3.model.Device;
@@ -53,6 +56,7 @@ import org.hl7.fhir.dstu3.model.FamilyMemberHistory.FamilyMemberHistoryCondition
 import org.hl7.fhir.dstu3.model.Group;
 import org.hl7.fhir.dstu3.model.Group.GroupType;
 import org.hl7.fhir.dstu3.model.IdType;
+import org.hl7.fhir.dstu3.model.Identifier;
 import org.hl7.fhir.dstu3.model.Immunization;
 import org.hl7.fhir.dstu3.model.Immunization.ImmunizationExplanationComponent;
 import org.hl7.fhir.dstu3.model.Immunization.ImmunizationPractitionerComponent;
@@ -152,6 +156,7 @@ import org.slf4j.LoggerFactory;
 
 import tr.com.srdc.cda2fhir.conf.Config;
 import tr.com.srdc.cda2fhir.util.Constants;
+import tr.com.srdc.cda2fhir.util.UuidFactory;
 
 public class ResourceTransformerImpl implements IResourceTransformer, Serializable {
 
@@ -161,6 +166,9 @@ public class ResourceTransformerImpl implements IResourceTransformer, Serializab
   private IValueSetsTransformer vst;
   private ICdaTransformer cdat;
   private Reference defaultPatientRef;
+
+  private List<ConceptMap> conceptMaps;
+  private UuidFactory guidFactory;
 
   private final Logger logger = LoggerFactory.getLogger(ResourceTransformerImpl.class);
 
@@ -175,12 +183,24 @@ public class ResourceTransformerImpl implements IResourceTransformer, Serializab
     // not initiated with a ICDATransformer
     
     defaultPatientRef = new Reference(new IdType("Patient", 0L));
+    guidFactory = new UuidFactory();
   }
 
   public ResourceTransformerImpl(ICdaTransformer cdaTransformer) {
     this();
     cdat = cdaTransformer;
   }
+
+  public ResourceTransformerImpl(ICdaTransformer cdaTransformer, List<ConceptMap> conceptMaps) {
+    this();
+    cdat = cdaTransformer;
+  }
+
+  public ResourceTransformerImpl(List<ConceptMap> conceptMaps) {
+    this();
+    this.conceptMaps = conceptMaps;
+  }
+
 
   protected String getUniqueId() {
     if (cdat != null) {
@@ -231,7 +251,10 @@ public class ResourceTransformerImpl implements IResourceTransformer, Serializab
    * Transforms an Allergy Problem act to Allergy Intolerance FHIR Resources in a Fhir Bundle.
    */
   public Bundle transformAllergyProblemAct2AllergyIntolerance(AllergyProblemAct cdaAllergyProbAct) {
-    if (cdaAllergyProbAct == null || cdaAllergyProbAct.isSetNullFlavor()) {
+    //Check to see if there are allergies.
+    //If the NegationInd is true on the Observations, it should indicate there are no allergies.
+    if (cdaAllergyProbAct == null || cdaAllergyProbAct.isSetNullFlavor() 
+        || cdaAllergyProbAct.getAllergyObservations().stream().anyMatch(a -> a.getNegationInd())) {
       return null;
     }
       
@@ -240,10 +263,7 @@ public class ResourceTransformerImpl implements IResourceTransformer, Serializab
     Bundle allergyIntoleranceBundle = new Bundle();
     allergyIntoleranceBundle.addEntry(
           new BundleEntryComponent().setResource(fhirAllergyIntolerance));
-
-    // resource id
-    IdType resourceId = new IdType("AllergyIntolerance", getUniqueId());
-    fhirAllergyIntolerance.setId(resourceId);
+    
 
     // meta.profile
     if (Config.isGenerateDafProfileMetadata()) {
@@ -257,6 +277,12 @@ public class ResourceTransformerImpl implements IResourceTransformer, Serializab
       }
     }
 
+    //Register the Allergy and set the ID.
+    IdType resourceId = new IdType(
+          "AllergyIntolerance", 
+          "urn:uuid:" + guidFactory.addKey(fhirAllergyIntolerance).toString());
+    fhirAllergyIntolerance.setId(resourceId);
+
     // patient
     fhirAllergyIntolerance.setPatient(getPatientRef());
 
@@ -269,10 +295,14 @@ public class ResourceTransformerImpl implements IResourceTransformer, Serializab
           Bundle fhirPractitionerBundle = transformAuthor2Practitioner(author);
 
           for (BundleEntryComponent entry : fhirPractitionerBundle.getEntry()) {
-            allergyIntoleranceBundle.addEntry(
-                  new BundleEntryComponent().setResource(entry.getResource()));
-            if (entry.getResource() instanceof Practitioner) {
-              fhirPractitioner = (Practitioner) entry.getResource();
+            if (!allergyIntoleranceBundle.getEntry()
+                .stream()
+                .anyMatch(c -> c.getFullUrl().equalsIgnoreCase(entry.getFullUrl()))) {            
+              allergyIntoleranceBundle.addEntry(
+                    new BundleEntryComponent().setResource(entry.getResource()));
+              if (entry.getResource() instanceof Practitioner) {
+                fhirPractitioner = (Practitioner) entry.getResource();
+              }
             }
           }
           fhirAllergyIntolerance.setRecorder(new Reference(fhirPractitioner.getId()));
@@ -285,7 +315,14 @@ public class ResourceTransformerImpl implements IResourceTransformer, Serializab
         && !cdaAllergyProbAct.getStatusCode().isSetNullFlavor()) {
       if (cdaAllergyProbAct.getStatusCode().getCode() != null
           && !cdaAllergyProbAct.getStatusCode().getCode().isEmpty()) {
-        //TODO: Update Status to Clinical/Verification Status
+        
+        fhirAllergyIntolerance.setClinicalStatus(
+              vst.transformStatusCode2AllergyClinicalStatus(
+                    cdaAllergyProbAct.getStatusCode().getCode()));
+        //Transform the statuses to Verification Status too.
+        fhirAllergyIntolerance.setVerificationStatus(
+              vst.transformStatusCode2AllergyVerificationStatus(
+                    cdaAllergyProbAct.getStatusCode().getCode()));
       }
     }
 
@@ -306,6 +343,7 @@ public class ResourceTransformerImpl implements IResourceTransformer, Serializab
       }
     }
 
+    
     // getting allergyObservation
     if (cdaAllergyProbAct.getAllergyObservations() != null 
         && !cdaAllergyProbAct.getAllergyObservations().isEmpty()) {
@@ -455,6 +493,13 @@ public class ResourceTransformerImpl implements IResourceTransformer, Serializab
         }
       }
     }
+
+    //Set the Full Urls
+    if (allergyIntoleranceBundle != null) {
+      for (BundleEntryComponent entry : allergyIntoleranceBundle.getEntry()) {
+        entry.setFullUrl(entry.getResource().getId());
+      }
+    }
     return allergyIntoleranceBundle;
   }
 
@@ -473,10 +518,6 @@ public class ResourceTransformerImpl implements IResourceTransformer, Serializab
     Bundle fhirPractitionerBundle = new Bundle();
     fhirPractitionerBundle.addEntry(new BundleEntryComponent().setResource(fhirPractitioner));
 
-    // resource id
-    IdType resourceId = new IdType("Practitioner", getUniqueId());
-    fhirPractitioner.setId(resourceId);
-
     // meta.profile
     if (Config.isGenerateDafProfileMetadata()) {
       fhirPractitioner.getMeta().addProfile(Constants.PROFILE_DAF_PRACTITIONER);
@@ -490,6 +531,11 @@ public class ResourceTransformerImpl implements IResourceTransformer, Serializab
         }
       }
     }
+
+    //Set the Id
+    IdType resourceId = new IdType("Practitioner", 
+        "urn:uuid:" + guidFactory.addKey(fhirPractitioner).toString());
+    fhirPractitioner.setId(resourceId);
 
     // assignedPerson.name -> name
     if (cdaAssignedAuthor.getAssignedPerson() != null 
@@ -526,24 +572,55 @@ public class ResourceTransformerImpl implements IResourceTransformer, Serializab
     // Adding a practitionerRole
     PractitionerRole fhirPractitionerRole = new PractitionerRole();
 
+    String idValue = fhirPractitioner.getIdentifierFirstRep().getValue();
+
     // code -> practitionerRole.role
     if (cdaAssignedAuthor.getCode() != null && !cdaAssignedAuthor.isSetNullFlavor()) {
       fhirPractitionerRole.addCode(dtt.transformCD2CodeableConcept(cdaAssignedAuthor.getCode()));
+      idValue += "-" + cdaAssignedAuthor.getCode().getCode();
     }
 
     // representedOrganization -> practitionerRole.managingOrganization
     if (cdaAssignedAuthor.getRepresentedOrganization() != null
         && !cdaAssignedAuthor.getRepresentedOrganization().isSetNullFlavor()) {
       Organization fhirOrganization = 
-          transformOrganization2Organization(cdaAssignedAuthor.getRepresentedOrganization());
+          transformOrganization2Organization(
+              cdaAssignedAuthor.getRepresentedOrganization());                  
       fhirPractitionerRole.setOrganization(new Reference(fhirOrganization.getId()));
-      fhirPractitionerBundle.addEntry(new BundleEntryComponent().setResource(fhirOrganization));
+      idValue += "-" + fhirOrganization.getIdentifierFirstRep().getValue();
+
+      if (!fhirPractitionerBundle.getEntry()
+          .stream()
+          .anyMatch(c -> c.getFullUrl().equalsIgnoreCase(fhirOrganization.getId()))) {      
+        fhirPractitionerBundle.addEntry(new BundleEntryComponent()
+            .setResource(fhirOrganization)
+            .setFullUrl(fhirOrganization.getId()));
+      }
     }
+    
+
+    Identifier id = new Identifier();
+    id.setSystem("urn:oid:practitioner.role.oid");
+    id.setValue(idValue);
+    
+    fhirPractitionerRole.addIdentifier(id);
+  
+    IdType roleId = new IdType("PractitionerRole", 
+        "urn:uuid:" + guidFactory.addKey(fhirPractitionerRole).toString());    
+    fhirPractitionerRole.setId(roleId);
+
     //Add the Linkage to the Fhir Practitioner
     fhirPractitionerRole.setPractitioner(new Reference(fhirPractitioner.getId()));
     //Add the Practitioner Role to the Bundle.
-    fhirPractitionerBundle.addEntry(new BundleEntryComponent().setResource(fhirPractitionerRole));
-
+    if (fhirPractitionerRole.getPractitioner() != null 
+            && fhirPractitionerRole.getCode() != null
+            && !fhirPractitionerBundle.getEntry()
+                .stream()
+                .anyMatch(p -> p.getFullUrl().equalsIgnoreCase(roleId.getValue()))) {
+      fhirPractitionerBundle.addEntry(
+          new BundleEntryComponent().setResource(fhirPractitionerRole).setFullUrl(
+              fhirPractitionerRole.getId()));
+    }
     return fhirPractitionerBundle;
   }
 
@@ -610,27 +687,58 @@ public class ResourceTransformerImpl implements IResourceTransformer, Serializab
     }
 
     PractitionerRole fhirPractitionerRole = new PractitionerRole();
-
+    String idValue = fhirPractitioner.getIdentifierFirstRep().getValue();
     // code -> practitionerRole.role
     if (cdaAssignedEntity.getCode() != null && !cdaAssignedEntity.isSetNullFlavor()) {
       fhirPractitionerRole.addCode(dtt.transformCD2CodeableConcept(cdaAssignedEntity.getCode()));
+      idValue += "-" + fhirPractitionerRole.getCodeFirstRep().getCodingFirstRep().getCode();
     }
 
     // representedOrganization -> practitionerRole.organization
     // NOTE: we skipped multiple instances of representated organization; we just
     // omit apart from the first
+    
     if (!cdaAssignedEntity.getRepresentedOrganizations().isEmpty()) {
       if (cdaAssignedEntity.getRepresentedOrganizations().get(0) != null
           && !cdaAssignedEntity.getRepresentedOrganizations().get(0).isSetNullFlavor()) {
         Organization fhirOrganization = transformOrganization2Organization(
             cdaAssignedEntity.getRepresentedOrganizations().get(0));
         fhirPractitionerRole.setOrganization(new Reference(fhirOrganization.getId()));
-        fhirPractitionerBundle.addEntry(new BundleEntryComponent().setResource(fhirOrganization));
-        
+            
+        if (!fhirPractitionerBundle.getEntry()
+            .stream()
+            .anyMatch(p -> p.getFullUrl().equalsIgnoreCase(fhirOrganization.getId()))) {      
+          fhirPractitionerBundle.addEntry(new BundleEntryComponent().setResource(fhirOrganization));
+        }    
+        idValue += "-" + fhirOrganization.getIdentifierFirstRep().getValue();        
       }
     }
+    
+
+
     fhirPractitionerRole.setPractitioner(new Reference(fhirPractitioner.getId()));
-    fhirPractitionerBundle.addEntry(new BundleEntryComponent().setResource(fhirPractitionerRole));
+    if (fhirPractitionerRole.getCode() != null 
+        && fhirPractitionerRole.getPractitioner() != null 
+        && !fhirPractitionerBundle.getEntry()
+            .stream()
+            .anyMatch(p -> p.getFullUrl().equalsIgnoreCase(fhirPractitionerRole.getId()))) {
+
+      Identifier id = new Identifier();
+      id.setSystem("urn:oid:practitioner.role.oid");
+      id.setValue(idValue);
+
+      IdType practId = new IdType(
+            "PractitionerRole", 
+            "urn:uuid:" + guidFactory.addKey(fhirPractitionerRole).toString());
+      fhirPractitionerRole.setId(practId);
+      fhirPractitionerRole.addIdentifier(id);
+
+      fhirPractitionerBundle.addEntry(
+            new BundleEntryComponent()
+              .setResource(fhirPractitionerRole)
+              .setFullUrl(fhirPractitionerRole.getId()));
+    }
+    
 
     return fhirPractitionerBundle;
   }
@@ -659,8 +767,7 @@ public class ResourceTransformerImpl implements IResourceTransformer, Serializab
 
     Substance fhirSubstance = new Substance();
 
-    // resource id
-    fhirSubstance.setId(new IdType("Substance", getUniqueId()));
+
 
     // meta.profile
     if (Config.isGenerateDafProfileMetadata()) {
@@ -669,6 +776,10 @@ public class ResourceTransformerImpl implements IResourceTransformer, Serializab
 
     // code -> code
     fhirSubstance.setCode(dtt.transformCD2CodeableConcept(cdaSubstanceCode));
+
+    // resource id
+    fhirSubstance.setId(
+          new IdType("Substance", "urn:uuid:" + guidFactory.addKey(fhirSubstance).toString()));
 
     return fhirSubstance;
   }
@@ -684,10 +795,12 @@ public class ResourceTransformerImpl implements IResourceTransformer, Serializab
       return null;
     }    
 
+    //TODO: Cleanup Fhir Bundles with Duplicates.
+    
     // create and init the global bundle and the composition resources
     Bundle fhirCompBundle = new Bundle();
     Composition fhirComp = new Composition();
-    fhirComp.setId(new IdType("Composition", getUniqueId()));
+    
     fhirCompBundle.addEntry(new BundleEntryComponent().setResource(fhirComp));
 
     // id -> identifier
@@ -695,6 +808,8 @@ public class ResourceTransformerImpl implements IResourceTransformer, Serializab
       fhirComp.setIdentifier(dtt.transformII2Identifier(cdaClinicalDocument.getId()));
     }
 
+    fhirComp.setId(new IdType("Composition", 
+        "urn:guid:" + guidFactory.addKey(fhirComp).toString()));
     // status
     fhirComp.setStatus(Config.DEFAULT_COMPOSITION_STATUS);
 
@@ -724,10 +839,27 @@ public class ResourceTransformerImpl implements IResourceTransformer, Serializab
         && !cdaClinicalDocument.getConfidentialityCode().isSetNullFlavor()) {
       if (cdaClinicalDocument.getConfidentialityCode().getCode() != null
           && !cdaClinicalDocument.getConfidentialityCode().getCode().isEmpty()) {
-        //TODO: Update this to utilize Concept Map possibly.
-        fhirComp.setConfidentiality(
+        if (conceptMaps != null) {
+          Optional<ConceptMap> map = 
+              conceptMaps.stream()
+                  .filter(c -> c.getIdentifier().getSystem().toLowerCase().contains("confidential"))
+                  .findFirst();
+          if (map.isPresent()) {
             DocumentConfidentiality.fromCode(
-              cdaClinicalDocument.getConfidentialityCode().getCode()));
+                  vst.transformCdaValueToFhirCodeValue(
+                        cdaClinicalDocument.getConfidentialityCode().getCode(), 
+                        map.get(), 
+                        String.class));
+          } else {
+            fhirComp.setConfidentiality(
+                DocumentConfidentiality.fromCode(
+                  cdaClinicalDocument.getConfidentialityCode().getCode()));
+          }
+        } else {
+          fhirComp.setConfidentiality(
+                DocumentConfidentiality.fromCode(
+                  cdaClinicalDocument.getConfidentialityCode().getCode()));
+        }
       }
     }
 
@@ -738,9 +870,16 @@ public class ResourceTransformerImpl implements IResourceTransformer, Serializab
         transformPatientRole2Patient(
             cdaClinicalDocument.getRecordTargets().get(0).getPatientRole());
     for (BundleEntryComponent entry : subjectBundle.getEntry()) {
-      fhirCompBundle.addEntry(new BundleEntryComponent().setResource(entry.getResource()));
-      if (entry.getResource() instanceof Patient) {
-        fhirComp.setSubject(new Reference(entry.getResource().getId()));
+      if (!fhirCompBundle.getEntry()
+          .stream()
+          .anyMatch(e -> e.getFullUrl().equalsIgnoreCase(entry.getFullUrl()))) {
+        fhirCompBundle.addEntry(
+              new BundleEntryComponent()
+                  .setResource(entry.getResource())
+                  .setFullUrl(entry.getFullUrl()));
+        if (entry.getResource() instanceof Patient) {
+          fhirComp.setSubject(new Reference(entry.getResource().getId()));
+        }
       }
     }
 
@@ -753,9 +892,16 @@ public class ResourceTransformerImpl implements IResourceTransformer, Serializab
             Bundle practBundle = transformAuthor2Practitioner(author);
             for (BundleEntryComponent entry : practBundle.getEntry()) {
               // Add all the resources returned from the bundle to the main bundle
-              fhirCompBundle.addEntry(new BundleEntryComponent().setResource(entry.getResource()));
-              if (entry.getResource() instanceof Practitioner) {
-                fhirComp.addAuthor().setReference((entry.getResource()).getId());
+              if (!fhirCompBundle.getEntry()
+                  .stream()
+                  .anyMatch(p -> p.getFullUrl()
+                      .equalsIgnoreCase(entry.getFullUrl()))) {              
+                fhirCompBundle.addEntry(new BundleEntryComponent()
+                    .setResource(entry.getResource())
+                    .setFullUrl(entry.getFullUrl()));
+                if (entry.getResource() instanceof Practitioner) {
+                  fhirComp.addAuthor().setReference((entry.getResource()).getId());
+                }
               }
             }
           }
@@ -2308,8 +2454,8 @@ public class ResourceTransformerImpl implements IResourceTransformer, Serializab
     // TODO: The information used for dosageInstruction is used for different
     // fields, too.
     // Determine which field the information should fit
-
     // effectiveTimes -> dosageInstruction.timing.event
+    
     if (cdaMedicationDispense.getEffectiveTimes() != null 
         && !cdaMedicationDispense.getEffectiveTimes().isEmpty()) {
       Timing fhirTiming = new Timing();
@@ -2636,11 +2782,27 @@ public class ResourceTransformerImpl implements IResourceTransformer, Serializab
     }
 
     // code -> type
-    // TODO: Requires huge mapping work from HL7 HealthcareServiceLocation value set
-    // to http://hl7.org/fhir/ValueSet/v3-ServiceDeliveryLocationRoleType
     if (cdaParticipantRole.getCode() != null && !cdaParticipantRole.getCode().isSetNullFlavor()) {
-      logger.info(
-          "Found location.code in the CDA document, which can be mapped to Location.type on the FHIR side. But this is skipped for the moment, as it requires huge mapping work from HL7 HealthcareServiceLocation value set to http://hl7.org/fhir/ValueSet/v3-ServiceDeliveryLocationRoleType");
+      //Look for a Concept Map, else set the raw value to the Location Type.
+      Optional<ConceptMap> map = 
+          conceptMaps.stream().filter(c -> 
+            c.getIdentifier().getSystem().toLowerCase().contains("location") 
+            && c.getIdentifier().getSystem().toLowerCase().contains("service")).findFirst();
+      if (map.isPresent()) {
+        fhirLocation.setType(
+            vst.transformCdaValueToFhirCodeValue(
+              cdaParticipantRole.getCode().getCode(), map.get(), CodeableConcept.class));
+
+      } else {
+        logger.info("No Concept Map found for mapping."
+            + "  Setting the raw value to the Location Type in FHIR.");
+        CodeableConcept concept = new CodeableConcept();
+        concept.addCoding(new Coding("", cdaParticipantRole.getCode().getCode(), ""));
+        fhirLocation.setType(concept);
+
+      }
+      //logger.info(
+      //    "Found location.code in the CDA document, which can be mapped to Location.type on the FHIR side. But this is skipped for the moment, as it requires huge mapping work from HL7 HealthcareServiceLocation value set to http://hl7.org/fhir/ValueSet/v3-ServiceDeliveryLocationRoleType");
       // fhirLocation.setType();
     }
 
