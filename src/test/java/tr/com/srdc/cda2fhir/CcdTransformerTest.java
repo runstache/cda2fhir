@@ -98,7 +98,9 @@ public class CcdTransformerTest {
   public void testReferenceCcdInstance() throws Exception {
     FileInputStream fis = new FileInputStream("src/test/resources/C-CDA_R2-1_CCD.xml");
 
-    ClinicalDocument cda = CDAUtil.load(fis);
+    ContinuityOfCareDocument cda = 
+        (ContinuityOfCareDocument)CDAUtil.loadAs(fis, 
+          ConsolPackage.eINSTANCE.getContinuityOfCareDocument());
     ICdaTransformer ccdTransformer = new CcdTransformerImpl(IdGeneratorEnum.COUNTER);
     Config.setGenerateDafProfileMetadata(true);
     Config.setGenerateNarrative(true);
@@ -113,7 +115,9 @@ public class CcdTransformerTest {
   public void testReferenceCcdInstanceWithoutDaf() throws Exception {
     FileInputStream fis = new FileInputStream("src/test/resources/C-CDA_R2-1_CCD.xml");
 
-    ClinicalDocument cda = CDAUtil.load(fis);
+    ContinuityOfCareDocument cda = 
+        (ContinuityOfCareDocument)CDAUtil.loadAs(fis, 
+          ConsolPackage.eINSTANCE.getContinuityOfCareDocument());
     ICdaTransformer ccdTransformer = new CcdTransformerImpl(IdGeneratorEnum.COUNTER);
     Config.setGenerateDafProfileMetadata(false);
     Config.setGenerateNarrative(true);
@@ -129,7 +133,9 @@ public class CcdTransformerTest {
   public void testReferenceCcdInstanceWithoutDafAndNarrative() throws Exception {
     FileInputStream fis = new FileInputStream("src/test/resources/C-CDA_R2-1_CCD.xml");
 
-    ClinicalDocument cda = CDAUtil.load(fis);
+    ContinuityOfCareDocument cda = 
+        (ContinuityOfCareDocument)CDAUtil.loadAs(fis, 
+          ConsolPackage.eINSTANCE.getContinuityOfCareDocument());
     ICdaTransformer ccdTransformer = new CcdTransformerImpl(IdGeneratorEnum.COUNTER);
     Config.setGenerateDafProfileMetadata(false);
     Config.setGenerateNarrative(false);
@@ -144,7 +150,9 @@ public class CcdTransformerTest {
   public void testViteraSample() throws Exception {
     FileInputStream fis = new FileInputStream("src/test/resources/Vitera_CCDA_SMART_Sample.xml");
 
-    ClinicalDocument cda = CDAUtil.load(fis);
+    ContinuityOfCareDocument cda = 
+        (ContinuityOfCareDocument)CDAUtil.loadAs(fis, 
+          ConsolPackage.eINSTANCE.getContinuityOfCareDocument());
     ICdaTransformer ccdTransformer = new CcdTransformerImpl(IdGeneratorEnum.COUNTER);
     Config.setGenerateDafProfileMetadata(true);
     Config.setGenerateNarrative(true);

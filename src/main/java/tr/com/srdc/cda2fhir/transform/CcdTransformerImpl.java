@@ -264,7 +264,9 @@ public class CcdTransformerImpl implements ICdaTransformer, Serializable {
               resTransformer.transformFamilyHistoryOrganizer2FamilyMemberHistory(fhOrganizer);
           Reference ref = fhirSec.addEntry();
           ref.setReference(fmh.getId());
-          ccdBundle.addEntry(new BundleEntryComponent().setResource(fmh));
+          ccdBundle.addEntry(new BundleEntryComponent()
+              .setResource(fmh)
+              .setFullUrl(fmh.getId()));
         }
       } else if (cdaSec instanceof FunctionalStatusSection) {
         FunctionalStatusSection funcSec = (FunctionalStatusSection) cdaSec;
@@ -291,7 +293,9 @@ public class CcdTransformerImpl implements ICdaTransformer, Serializable {
           Device fhirDevice = resTransformer.transformSupply2Device(supplyActivity);
           Reference ref = fhirSec.addEntry();
           ref.setReference(fhirDevice.getId());
-          ccdBundle.addEntry(new BundleEntryComponent().setResource(fhirDevice));
+          ccdBundle.addEntry(new BundleEntryComponent()
+              .setResource(fhirDevice)
+              .setFullUrl(fhirDevice.getId()));
         }
         // Case 2: Entry is a Medical Equipment Organizer, which is indeed a collection
         // of Non-Medicinal Supply Activity (V2)
@@ -301,7 +305,9 @@ public class CcdTransformerImpl implements ICdaTransformer, Serializable {
               Device fhirDevice = resTransformer.transformSupply2Device(supply);
               Reference ref = fhirSec.addEntry();
               ref.setReference(fhirDevice.getId());
-              ccdBundle.addEntry(new BundleEntryComponent().setResource(fhirDevice));
+              ccdBundle.addEntry(new BundleEntryComponent()
+                  .setResource(fhirDevice)
+                  .setFullUrl(fhirDevice.getId()));
             }
           }
         }
@@ -383,8 +389,10 @@ public class CcdTransformerImpl implements ICdaTransformer, Serializable {
     if (sourceBundle != null) {
       for (BundleEntryComponent entry : sourceBundle.getEntry()) {
         if (entry != null) {
-          // Add all the resources returned from the source bundle to the target bundle
-          targetBundle.addEntry(entry);
+          // Add all the resources returned from the source bundle to the target bundle  
+          if (!entryExistsInBundle(targetBundle, entry.getFullUrl())) {        
+            targetBundle.addEntry(entry);
+          }
           // Add a reference to the section for each instance of requested class, e.g.
           // Observation, Procedure ...
           if (sectionRefCls.isInstance(entry.getResource())) {
@@ -420,5 +428,23 @@ public class CcdTransformerImpl implements ICdaTransformer, Serializable {
   @Override
   public Bundle tranformDocument(ClinicalDocument cda, List<ConceptMap> maps) {
     return null;
+  }
+
+  /**
+   * Verifies if an Entry already exists in the Source Bundle.
+   * @param source Source Bundle to check
+   * @param fullUrl Full Url to verify
+   * @return Boolean
+   */
+  private boolean entryExistsInBundle(Bundle source, String fullUrl) {
+    if (source != null && source.getEntry() != null 
+        && source.getEntry().size() > 0 
+        && !fullUrl.isEmpty()) {
+      return source.getEntry()
+          .stream()
+          .anyMatch(c -> c.getFullUrl().equalsIgnoreCase(fullUrl));      
+    } else {
+      return false;
+    }
   }
 }
