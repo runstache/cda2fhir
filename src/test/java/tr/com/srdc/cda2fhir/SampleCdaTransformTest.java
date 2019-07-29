@@ -1,5 +1,7 @@
 package tr.com.srdc.cda2fhir;
 
+import static org.junit.Assert.assertNotNull;
+
 import ca.uhn.fhir.context.FhirContext;
 import ca.uhn.fhir.parser.IParser;
 
@@ -13,7 +15,6 @@ import org.hl7.fhir.dstu3.model.Resource;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
-import org.openhealthtools.mdht.uml.cda.Section;
 import org.openhealthtools.mdht.uml.cda.consol.ConsolPackage;
 import org.openhealthtools.mdht.uml.cda.consol.ContinuityOfCareDocument;
 import org.openhealthtools.mdht.uml.cda.util.CDAUtil;
@@ -57,7 +58,6 @@ public class SampleCdaTransformTest {
     if (bundle != null) {
       outputResource(bundle, "c:/docker/data/ccd/sample.xml.json");
     }
-
   }
 
   @Test
@@ -65,19 +65,8 @@ public class SampleCdaTransformTest {
     FileInputStream fis = new FileInputStream("c:/docker/data/ccd/sample.xml");
     ContinuityOfCareDocument ccd = 
         (ContinuityOfCareDocument)CDAUtil.loadAs(fis, 
-            ConsolPackage.eINSTANCE.getContinuityOfCareDocument());
-            
-   
-    //FileWriter writer;
-    //File file = new File("c:/docker/data/ccd/ccd.json");
-    //file.getParentFile().mkdirs();
-    for (Section section : ccd.getSections()) {
-      //writer = new FileWriter(file);
-      String json = section.toString();
-      //writer.append((String)json);
-      //writer.close();
-    }
-
+            ConsolPackage.eINSTANCE.getContinuityOfCareDocument());     
+    assertNotNull(ccd);   
   }
 
 

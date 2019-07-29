@@ -27,8 +27,10 @@ import java.util.Optional;
 import org.hl7.fhir.dstu3.model.Address.AddressType;
 import org.hl7.fhir.dstu3.model.Address.AddressUse;
 import org.hl7.fhir.dstu3.model.AllergyIntolerance.AllergyIntoleranceCategory;
+import org.hl7.fhir.dstu3.model.AllergyIntolerance.AllergyIntoleranceClinicalStatus;
 import org.hl7.fhir.dstu3.model.AllergyIntolerance.AllergyIntoleranceCriticality;
 import org.hl7.fhir.dstu3.model.AllergyIntolerance.AllergyIntoleranceSeverity;
+import org.hl7.fhir.dstu3.model.AllergyIntolerance.AllergyIntoleranceVerificationStatus;
 import org.hl7.fhir.dstu3.model.CodeableConcept;
 import org.hl7.fhir.dstu3.model.Coding;
 import org.hl7.fhir.dstu3.model.ConceptMap;
@@ -51,7 +53,6 @@ import org.hl7.fhir.dstu3.model.Observation.ObservationStatus;
 import org.hl7.fhir.dstu3.model.Procedure.ProcedureStatus;
 import org.hl7.fhir.dstu3.model.Timing.UnitsOfTime;
 
-import org.hl7.fhir.dstu3.model.codesystems.AllergyIntoleranceStatus;
 import org.hl7.fhir.exceptions.FHIRException;
 import org.openhealthtools.mdht.uml.hl7.datatypes.CD;
 import org.openhealthtools.mdht.uml.hl7.vocab.EntityClassRoot;
@@ -1179,24 +1180,45 @@ public class ValueSetsTransformerImpl implements IValueSetsTransformer, Serializ
   /**
    * Transforms Status Code to Allergy Intolerance Status.
    */
-  public AllergyIntoleranceStatus transformStatusCode2AllergyIntoleranceStatus(
+  public AllergyIntoleranceClinicalStatus transformStatusCode2AllergyClinicalStatus(
         String cdaStatusCode) {
     switch (cdaStatusCode.toLowerCase()) {
       case "active":
-        return AllergyIntoleranceStatus.ACTIVE;
+        return AllergyIntoleranceClinicalStatus.ACTIVE;
       case "nullified":
       case "error":
-        return AllergyIntoleranceStatus.ENTEREDINERROR;
+        return AllergyIntoleranceClinicalStatus.NULL;
       case "confirmed":
-        return AllergyIntoleranceStatus.ACTIVECONFIRMED;
+        return AllergyIntoleranceClinicalStatus.ACTIVE;
       case "unconfirmed":
-        return AllergyIntoleranceStatus.ACTIVE;
+        return AllergyIntoleranceClinicalStatus.ACTIVE;
       case "refuted":
-        return AllergyIntoleranceStatus.REFUTED;
+        return AllergyIntoleranceClinicalStatus.INACTIVE;
       case "inactive":
-        return AllergyIntoleranceStatus.INACTIVE;
+        return AllergyIntoleranceClinicalStatus.INACTIVE;
       case "resolved":
-        return AllergyIntoleranceStatus.RESOLVED;
+        return AllergyIntoleranceClinicalStatus.RESOLVED;
+      default:
+        return null;
+    }
+  }
+
+  /**
+   * Transforms a CDA Status Code to an Allergy Intollerance Verification Status.
+   */
+  public AllergyIntoleranceVerificationStatus transformStatusCode2AllergyVerificationStatus(
+        String cdaStatusCode) {
+    switch (cdaStatusCode.toLowerCase()) {
+      case "confirmed":
+        return AllergyIntoleranceVerificationStatus.CONFIRMED;
+      case "unconfirmed":
+        return AllergyIntoleranceVerificationStatus.UNCONFIRMED;
+      case "refuted":
+        return AllergyIntoleranceVerificationStatus.REFUTED;
+      case "error":
+        return AllergyIntoleranceVerificationStatus.ENTEREDINERROR;
+      case "nullified":
+        return AllergyIntoleranceVerificationStatus.NULL;        
       default:
         return null;
     }

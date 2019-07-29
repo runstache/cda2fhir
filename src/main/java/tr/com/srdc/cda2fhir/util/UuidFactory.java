@@ -5,7 +5,10 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.UUID;
 
+import org.hl7.fhir.dstu3.model.Coding;
 import org.hl7.fhir.dstu3.model.Identifier;
+import org.hl7.fhir.dstu3.model.Medication;
+import org.hl7.fhir.dstu3.model.Organization;
 import org.hl7.fhir.dstu3.model.Resource;
 
 
@@ -48,25 +51,59 @@ public class UuidFactory {
     try {
       Method method = resource.getClass().getMethod("getIdentifier");
       List<Identifier> ids = (List<Identifier>)method.invoke(resource);
-      UUID guid = null;
-      for (Identifier id : ids) {
-        String keyValue = id.getSystem() + "|" + id.getValue();
-        if (guids.containsKey(keyValue)) {
-          UUID tempGuid = guids.get(keyValue);
-          if (guid != null && tempGuid != guid) {
-            guids.put(keyValue, guid);            
+      if (ids != null && ids.size() > 0) {
+        UUID guid = null;
+        for (Identifier id : ids) {
+          String keyValue = id.getSystem() + "|" + id.getValue();
+          if (guids.containsKey(keyValue)) {
+            UUID tempGuid = guids.get(keyValue);
+            if (guid != null && tempGuid != guid) {
+              guids.put(keyValue, guid);            
+            } else {
+              guid = tempGuid;
+            }
           } else {
-            guid = tempGuid;
-          }
-        } else {
-          if (guid != null) {
-            guid = addKey(keyValue, guid);
-          } else {
-            guid = addKey(keyValue);
+            if (guid != null) {
+              guid = addKey(keyValue, guid);
+            } else {
+              guid = addKey(keyValue);
+            }
           }
         }
-      }
-      return guid;
+        return guid;
+      } else {
+        //No Identifiers in the Resource.
+        String key = "";
+        if (resource instanceof Organization) {
+          Organization org = (Organization)resource;
+          if (org.getName() != null) {
+            return addKey(org.getName());
+          }
+        }
+
+        if (resource instanceof Medication) {
+          Medication med = (Medication)resource;
+          if (med.getCode() != null && med.getCode().getCoding() != null) {
+            Coding mdCode = med.getCode().getCodingFirstRep();
+            if (mdCode.getSystem() != null && mdCode.getCode() != null) {
+              key = mdCode.getSystem() + "|" + mdCode.getCode();
+              return addKey(key);
+            } else {
+              if (mdCode.getCode() != null) {
+                key = resource.getClass().getName() + "|" + mdCode.getCode();
+                return addKey(key);
+              }
+            }
+          }
+        }
+
+        if (resource.getId() != null) {
+          key = resource.getClass().getName() + "|" + resource.getId();        
+        } else {
+          key = resource.getClass().getName();
+        }
+        return addKey(key);
+      }      
     } catch (Exception ex) {
       //No Identifiers in the Resource.
       String key = "";

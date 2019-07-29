@@ -3,8 +3,10 @@ package tr.com.srdc.cda2fhir.transform;
 import org.hl7.fhir.dstu3.model.Address.AddressType;
 import org.hl7.fhir.dstu3.model.Address.AddressUse;
 import org.hl7.fhir.dstu3.model.AllergyIntolerance.AllergyIntoleranceCategory;
+import org.hl7.fhir.dstu3.model.AllergyIntolerance.AllergyIntoleranceClinicalStatus;
 import org.hl7.fhir.dstu3.model.AllergyIntolerance.AllergyIntoleranceCriticality;
 import org.hl7.fhir.dstu3.model.AllergyIntolerance.AllergyIntoleranceSeverity;
+import org.hl7.fhir.dstu3.model.AllergyIntolerance.AllergyIntoleranceVerificationStatus;
 import org.hl7.fhir.dstu3.model.CodeableConcept;
 import org.hl7.fhir.dstu3.model.Coding;
 import org.hl7.fhir.dstu3.model.ConceptMap;
@@ -22,7 +24,6 @@ import org.hl7.fhir.dstu3.model.MedicationStatement.MedicationStatementStatus;
 import org.hl7.fhir.dstu3.model.Observation.ObservationStatus;
 import org.hl7.fhir.dstu3.model.Procedure.ProcedureStatus;
 import org.hl7.fhir.dstu3.model.Timing.UnitsOfTime;
-import org.hl7.fhir.dstu3.model.codesystems.AllergyIntoleranceStatus;
 
 /*
  * #%L
@@ -281,7 +282,16 @@ public interface IValueSetsTransformer {
    * @param cdaStatusCode A CDA StatusCode string
    * @return A value from the FHIR valueset AllergyIntoleranceStatus
    */
-  AllergyIntoleranceStatus transformStatusCode2AllergyIntoleranceStatus(String cdaStatusCode);
+  AllergyIntoleranceClinicalStatus transformStatusCode2AllergyClinicalStatus(
+        String cdaStatusCode);
+  
+  /**
+   * Converts the CDA Status Code to the Allergy Intollerance Verification Status Code.
+   * @param cdaStatusCode CDA Status Code.
+   * @return Allergy Intollerance Verification Status.
+   */
+  AllergyIntoleranceVerificationStatus transformStatusCode2AllergyVerificationStatus(
+        String cdaStatusCode);
 
   /**
    * Transforms a CDA StatusCode string to a value from the FHIR valueset
