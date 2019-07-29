@@ -32,6 +32,9 @@ import org.hl7.fhir.dstu3.model.Resource;
 import org.junit.BeforeClass;
 import org.junit.Test;
 import org.openhealthtools.mdht.uml.cda.ClinicalDocument;
+
+import org.openhealthtools.mdht.uml.cda.consol.ConsolPackage;
+import org.openhealthtools.mdht.uml.cda.consol.ContinuityOfCareDocument;
 import org.openhealthtools.mdht.uml.cda.util.CDAUtil;
 
 import tr.com.srdc.cda2fhir.conf.Config;
@@ -76,8 +79,10 @@ public class CcdTransformerTest {
   public void testInpSample() throws Exception {
     FileInputStream fis = 
         new FileInputStream("src/test/resources/170.315_b1_toc_inp_ccd_r21_sample1_v5.xml");
-
-    ClinicalDocument cda = CDAUtil.load(fis);
+    ContinuityOfCareDocument cda = 
+        (ContinuityOfCareDocument)CDAUtil.loadAs(fis, 
+            ConsolPackage.eINSTANCE.getContinuityOfCareDocument());
+    //ClinicalDocument cda = CDAUtil.load(fis);
     ICdaTransformer ccdTransformer = new CcdTransformerImpl(IdGeneratorEnum.COUNTER);
     Config.setGenerateDafProfileMetadata(true);
     Config.setGenerateNarrative(true);
