@@ -11,7 +11,9 @@ import java.io.FileWriter;
 import java.io.IOException;
 
 import org.hl7.fhir.dstu3.model.Bundle;
+import org.hl7.fhir.dstu3.model.Bundle.BundleType;
 import org.hl7.fhir.dstu3.model.Resource;
+
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -54,7 +56,7 @@ public class SampleCdaTransformTest {
     ICdaTransformer transformer = new CcdTransformerImpl(IdGeneratorEnum.UUID);
     Config.setGenerateDafProfileMetadata(true);
     Config.setGenerateNarrative(true);
-    Bundle bundle = transformer.transformDocument(ccd);
+    Bundle bundle = transformer.transformDocument(ccd, BundleType.TRANSACTION);
     if (bundle != null) {
       outputResource(bundle, "c:/docker/data/ccd/sample.xml.json");
     }

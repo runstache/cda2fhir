@@ -49,6 +49,7 @@ import org.hl7.fhir.dstu3.model.Dosage;
 import org.hl7.fhir.dstu3.model.Encounter;
 import org.hl7.fhir.dstu3.model.Encounter.DiagnosisComponent;
 import org.hl7.fhir.dstu3.model.Encounter.EncounterParticipantComponent;
+import org.hl7.fhir.dstu3.model.Encounter.EncounterStatus;
 import org.hl7.fhir.dstu3.model.Enumerations;
 import org.hl7.fhir.dstu3.model.Extension;
 import org.hl7.fhir.dstu3.model.FamilyMemberHistory;
@@ -91,6 +92,7 @@ import org.hl7.fhir.exceptions.FHIRException;
 
 import org.openhealthtools.mdht.uml.cda.AssignedAuthor;
 import org.openhealthtools.mdht.uml.cda.AssignedEntity;
+import org.openhealthtools.mdht.uml.cda.AssociatedEntity;
 import org.openhealthtools.mdht.uml.cda.Author;
 import org.openhealthtools.mdht.uml.cda.ClinicalDocument;
 import org.openhealthtools.mdht.uml.cda.Entity;
@@ -99,10 +101,12 @@ import org.openhealthtools.mdht.uml.cda.Guardian;
 import org.openhealthtools.mdht.uml.cda.LanguageCommunication;
 import org.openhealthtools.mdht.uml.cda.ManufacturedProduct;
 import org.openhealthtools.mdht.uml.cda.Material;
+import org.openhealthtools.mdht.uml.cda.Participant1;
 import org.openhealthtools.mdht.uml.cda.Participant2;
 import org.openhealthtools.mdht.uml.cda.ParticipantRole;
 import org.openhealthtools.mdht.uml.cda.PatientRole;
 import org.openhealthtools.mdht.uml.cda.Performer2;
+import org.openhealthtools.mdht.uml.cda.Person;
 import org.openhealthtools.mdht.uml.cda.ReferenceRange;
 import org.openhealthtools.mdht.uml.cda.RelatedSubject;
 import org.openhealthtools.mdht.uml.cda.Section;
@@ -111,6 +115,7 @@ import org.openhealthtools.mdht.uml.cda.Supply;
 import org.openhealthtools.mdht.uml.cda.consol.AllergyObservation;
 import org.openhealthtools.mdht.uml.cda.consol.AllergyProblemAct;
 import org.openhealthtools.mdht.uml.cda.consol.EncounterActivities;
+import org.openhealthtools.mdht.uml.cda.consol.EncounterDiagnosis;
 import org.openhealthtools.mdht.uml.cda.consol.FamilyHistoryObservation;
 import org.openhealthtools.mdht.uml.cda.consol.FamilyHistoryOrganizer;
 import org.openhealthtools.mdht.uml.cda.consol.ImmunizationActivity;
@@ -816,7 +821,7 @@ public class ResourceTransformerImpl implements IResourceTransformer, Serializab
     }
 
     fhirComp.setId(new IdType("Composition", 
-        "urn:guid:" + guidFactory.addKey(fhirComp).toString()));
+        "urn:uuid:" + guidFactory.addKey(fhirComp).toString()));
     // create and init the global bundle and the composition resources
     Bundle fhirCompBundle = new Bundle();
     
@@ -883,6 +888,7 @@ public class ResourceTransformerImpl implements IResourceTransformer, Serializab
     Bundle subjectBundle = 
         transformPatientRole2Patient(
             cdaClinicalDocument.getRecordTargets().get(0).getPatientRole());
+    
     for (BundleEntryComponent entry : subjectBundle.getEntry()) {
       if (!extistsInBundle(fhirCompBundle, entry.getFullUrl())) {
         fhirCompBundle.addEntry(
@@ -890,6 +896,11 @@ public class ResourceTransformerImpl implements IResourceTransformer, Serializab
                   .setResource(entry.getResource())
                   .setFullUrl(entry.getFullUrl()));
         if (entry.getResource() instanceof Patient) {
+          Patient patient = (Patient) entry.getResource();
+          for (Participant1 participant : cdaClinicalDocument.getParticipants()) {            
+            patient.addContact(transformParticipant2PatientContact(participant));
+          }
+          entry.setResource(patient);
           fhirComp.setSubject(new Reference(entry.getResource().getId()));
         }
       }
@@ -990,6 +1001,50 @@ public class ResourceTransformerImpl implements IResourceTransformer, Serializab
       }
     }
     return fhirCompBundle;
+  }
+
+  /**
+   * Transforms a Participant on the CDA Document to a Patient Contact Record.
+   * @param cdaParticipant CDA Participant.
+   * @return Patient Contact Component
+   */
+  public ContactComponent transformParticipant2PatientContact(Participant1 cdaParticipant) {
+    ContactComponent component = new ContactComponent();
+    if (cdaParticipant.getTypeCode() != null 
+        && cdaParticipant.getTypeCode().equals(ParticipationType.IND)) {
+      if (cdaParticipant.getAssociatedEntity() != null 
+          && !cdaParticipant.getAssociatedEntity().isSetNullFlavor()) {
+        AssociatedEntity entity = cdaParticipant.getAssociatedEntity();
+        if (entity.getAssociatedPerson() != null 
+            && !entity.getAssociatedPerson().isSetNullFlavor()) {        
+          Person person = entity.getAssociatedPerson();
+          //Add the name
+          if (person.getNames() != null) {
+            for (PN pn : person.getNames()) {
+              component.setName(dtt.transformPN2HumanName(pn));
+            }
+          }
+          //Add the Address
+          if (entity.getAddrs() != null) {
+            for (AD addr : entity.getAddrs()) {
+              component.setAddress(dtt.transformAD2Address(addr));
+            }
+          }
+          //Add the Telecoms
+          if (entity.getTelecoms() != null) {
+            for (TEL tel : entity.getTelecoms()) {
+              component.addTelecom(dtt.transformTel2ContactPoint(tel));
+            }
+          }
+          //Add the Relationship of the Person
+          if (entity.getCode() != null) {
+            component.addRelationship(
+                  dtt.transformCE2CodeableConcept(entity.getCode()));                      
+          }
+        }
+      }
+    }
+    return component;
   }
 
   /**
@@ -1102,7 +1157,11 @@ public class ResourceTransformerImpl implements IResourceTransformer, Serializab
       if (vst.transformStatusCode2EncounterStatus(cdaEncounter.getStatusCode().getCode()) != null) {
         fhirEncounter.setStatus(
               vst.transformStatusCode2EncounterStatus(cdaEncounter.getStatusCode().getCode()));
+      } else {
+        logger.warn("Encounter Status could not be mapped. Setting to Unknown.");
+        fhirEncounter.setStatus(EncounterStatus.UNKNOWN);
       }
+      
     } else {
       fhirEncounter.setStatus(Config.DEFAULT_ENCOUNTER_STATUS);
     }
@@ -1358,9 +1417,28 @@ public class ResourceTransformerImpl implements IResourceTransformer, Serializab
 
     // indication -> indication
     int ranking = 1;
+    for (EncounterDiagnosis cdaDiag : cdaEncounterActivity.getEncounterDiagnosiss()) {
+      if (!cdaDiag.isSetNullFlavor()) {
+        Condition fhirCondition = transformEncounterDiagnosis2Condition(cdaDiag);
+        fhirCondition.setContext(new Reference(fhirEncounter.getId()));
+        if (!extistsInBundle(fhirEncounterBundle, fhirCondition.getId())) {
+          fhirEncounterBundle.addEntry(new BundleEntryComponent()
+              .setResource(fhirCondition)
+              .setFullUrl(fhirCondition.getId()));
+        }
+        DiagnosisComponent component = new DiagnosisComponent();
+        component.setRank(ranking);
+        component.setCondition(new Reference(fhirCondition.getId()));
+        fhirEncounter.addDiagnosis(component);
+        ranking++;
+      }
+    }
+
+
     for (Indication cdaIndication : cdaEncounterActivity.getIndications()) {
       if (!cdaIndication.isSetNullFlavor()) {
         Condition fhirCondition = transformIndication2Condition(cdaIndication);
+        fhirCondition.setContext(new Reference(fhirEncounter.getId()));
         if (!extistsInBundle(fhirEncounterBundle, fhirCondition.getId())) {        
           fhirEncounterBundle.addEntry(new BundleEntryComponent()
               .setResource(fhirCondition)
@@ -1429,6 +1507,113 @@ public class ResourceTransformerImpl implements IResourceTransformer, Serializab
       }
     }
     return fhirEncounterBundle;
+  }
+
+  /**
+   * Transforms a CDA Encounter Diagnosis to a Condition.
+   * @param cdaDiagnosis CDA Diagnosis Instance.
+   * @return FHIR Condition
+   */
+  public Condition transformEncounterDiagnosis2Condition(EncounterDiagnosis cdaDiagnosis) {
+    Condition fhirCondition = new Condition();
+    
+    // patient
+    fhirCondition.setSubject(getPatientRef());
+
+    //meta.profile
+    if (Config.isGenerateDafProfileMetadata()) {
+      fhirCondition.getMeta().addProfile(Constants.PROFILE_DAF_CONDITION);
+    }
+
+    // id -> identifier
+    if (cdaDiagnosis.getIds() != null && !cdaDiagnosis.getIds().isEmpty()) {
+      for (II ii : cdaDiagnosis.getIds()) {
+        fhirCondition.addIdentifier(dtt.transformII2Identifier(ii));
+      }
+    }
+
+    // resource id
+    IdType resourceId = new IdType("Condition", 
+        "urn:uuid:" + guidFactory.addKey(fhirCondition).toString());
+    fhirCondition.setId(resourceId);
+
+    // code -> category 
+    // Setting to Encounter since these are coming from an Encounter Diagnosis.
+    fhirCondition.addCategory(
+          new CodeableConcept()
+            .addCoding(
+                new Coding("http://hl7.org/fhir/condition-category", 
+                  "encounter-diagnosis", 
+                  "Encounter Diagnosis")));
+
+    // effective Time -> Onset & abatement
+    if (cdaDiagnosis.getEffectiveTime() != null
+        && !cdaDiagnosis.getEffectiveTime().isSetNullFlavor()) {
+      IVXB_TS low = cdaDiagnosis.getEffectiveTime().getLow();
+      IVXB_TS high = cdaDiagnosis.getEffectiveTime().getHigh();
+      String value = cdaDiagnosis.getEffectiveTime().getValue();
+
+      if (low == null && high == null && value != null) {
+        fhirCondition.setOnset(dtt.transformString2DateTime(value));
+      } else {
+        // low - > onset
+        if (low != null && !low.isSetNullFlavor()) {
+          fhirCondition.setOnset(dtt.transformTS2DateTime(low));
+        } else {
+          // high -> abatement
+          if (high != null && high.isSetNullFlavor()) {
+            fhirCondition.setAbatement(dtt.transformTS2DateTime(high));
+          }
+        }
+      }
+
+      // effective time info -> Clinical Status
+      if (low != null
+          && !low.isSetNullFlavor()
+          && high != null
+          && !high.isSetNullFlavor()) {
+
+        // low and high populated -> resolve
+        fhirCondition.setClinicalStatus(ConditionClinicalStatus.RESOLVED);        
+      } else if (low != null && low.isSetNullFlavor()) {
+        // low but not high is populated -> active
+        fhirCondition.setClinicalStatus(ConditionClinicalStatus.ACTIVE);
+      } else if (value != null) {
+        // only the value is present -> active
+        fhirCondition.setClinicalStatus(ConditionClinicalStatus.ACTIVE);
+      } else {
+        fhirCondition.setClinicalStatus(ConditionClinicalStatus.NULL);
+      }
+
+      
+      
+    }
+
+    //Work through the Problem observations to set the Condition Code
+    for (ProblemObservation obs : cdaDiagnosis.getProblemObservations()) {
+      for (ANY value : obs.getValues()) {
+        if (value != null && !value.isSetNullFlavor()) {
+          if (value instanceof CD) {
+            fhirCondition.setCode(dtt.transformCD2CodeableConcept((CD) value));
+          }
+        }
+      }
+    }
+
+    // Set the Clinical Status Code
+    if (cdaDiagnosis.getStatusCode() != null && !cdaDiagnosis.getStatusCode().isSetNullFlavor()) {
+      if (cdaDiagnosis.getStatusCode().getCode() != null) {
+        fhirCondition.setClinicalStatus(
+              vst.transformStatusCode2ConditionClinicalStatusCodes(
+                cdaDiagnosis.getStatusCode().getCode()));
+      }
+    }
+    
+    // Set the default Verification Code
+    fhirCondition.setVerificationStatus(Config.DEFAULT_CONDITION_VERIFICATION_STATUS);
+
+
+    return fhirCondition;
   }
 
   /**
@@ -2067,6 +2252,7 @@ public class ResourceTransformerImpl implements IResourceTransformer, Serializab
 
     Condition fhirCond = new Condition();
 
+    
     // patient
     fhirCond.setSubject(getPatientRef());
 
@@ -2150,6 +2336,15 @@ public class ResourceTransformerImpl implements IResourceTransformer, Serializab
             fhirCond.setCode(dtt.transformCD2CodeableConcept((CD) value));
           }
         }
+      }
+    }
+
+    // Condition Status to Clinical Status Code.
+    if (cdaIndication.getStatusCode() != null && !cdaIndication.getStatusCode().isSetNullFlavor()) {
+      if (cdaIndication.getStatusCode().getCode() != null) {
+        fhirCond.setClinicalStatus(
+              vst.transformStatusCode2ConditionClinicalStatusCodes(
+                  cdaIndication.getCode().getCode()));
       }
     }
 

@@ -3,6 +3,7 @@ package tr.com.srdc.cda2fhir.transform;
 import java.util.List;
 
 import org.hl7.fhir.dstu3.model.Bundle;
+import org.hl7.fhir.dstu3.model.Bundle.BundleType;
 import org.hl7.fhir.dstu3.model.ConceptMap;
 
 /*
@@ -26,6 +27,7 @@ import org.hl7.fhir.dstu3.model.ConceptMap;
  */
 
 import org.hl7.fhir.dstu3.model.Reference;
+
 import org.openhealthtools.mdht.uml.cda.ClinicalDocument;
 import tr.com.srdc.cda2fhir.util.IdGeneratorEnum;
 
@@ -73,5 +75,16 @@ public interface ICdaTransformer {
    *         document and all other resources that are referenced within the
    *         Composition.
    */
-  Bundle tranformDocument(ClinicalDocument cda, List<ConceptMap> maps);
+  Bundle transformDocument(ClinicalDocument cda, List<ConceptMap> maps);
+
+  /**
+   * Transforms a Clinical Document Architecture Document
+   * into an instance of a FHIR Bundle of Resources with a given type.
+   * @param cda Clinical Document Instance to transfrom.
+   * @param type Bundle Type to return.
+   * @return A FHIR Bundle that contains a Composition corresponding to the CDA
+   *         document and all other resources that are referenced within the
+   *         Composition.
+   */
+  Bundle transformDocument(ClinicalDocument cda, BundleType type);
 }

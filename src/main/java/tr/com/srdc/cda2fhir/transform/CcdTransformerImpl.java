@@ -373,6 +373,34 @@ public class CcdTransformerImpl implements ICdaTransformer, Serializable {
   }
 
   /**
+   * Transforms a CDA to a Bundle of the given Bundle Type.
+   * @param cda CDA to transform
+   * @param type Bundle Type
+   * @return FHIR Bundle
+   */
+  @Override
+  public Bundle transformDocument(ClinicalDocument cda, BundleType type) {
+
+    Bundle cdaBundle = transformDocument(cda);
+
+    if (cdaBundle != null) {
+      cdaBundle.setType(type);
+      for (BundleEntryComponent entry : cdaBundle.getEntry()) {
+        addRequestToEntry(entry);
+      }
+    }
+
+    return cdaBundle;
+
+
+  }
+
+  @Override
+  public Bundle transformDocument(ClinicalDocument cda, List<ConceptMap> maps) {
+    return null;
+  }
+
+  /**
    * Copies all the entries from the source bundle to the target bundle, and at
    * the same time adds a reference to the Section.Entry for each instance of the
    * specified class
@@ -423,11 +451,6 @@ public class CcdTransformerImpl implements ICdaTransformer, Serializable {
     request.setMethod(HTTPVerb.POST);
     request.setUrl(entry.getResource().getResourceType().name());
     entry.setRequest(request);
-  }
-
-  @Override
-  public Bundle tranformDocument(ClinicalDocument cda, List<ConceptMap> maps) {
-    return null;
   }
 
   /**

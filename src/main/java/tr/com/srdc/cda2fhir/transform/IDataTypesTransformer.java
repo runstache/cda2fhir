@@ -31,6 +31,7 @@ import org.openhealthtools.mdht.uml.hl7.datatypes.AD;
 import org.openhealthtools.mdht.uml.hl7.datatypes.BIN;
 import org.openhealthtools.mdht.uml.hl7.datatypes.BL;
 import org.openhealthtools.mdht.uml.hl7.datatypes.CD;
+import org.openhealthtools.mdht.uml.hl7.datatypes.CE;
 import org.openhealthtools.mdht.uml.hl7.datatypes.CV;
 import org.openhealthtools.mdht.uml.hl7.datatypes.ED;
 import org.openhealthtools.mdht.uml.hl7.datatypes.EN;
@@ -39,6 +40,7 @@ import org.openhealthtools.mdht.uml.hl7.datatypes.INT;
 import org.openhealthtools.mdht.uml.hl7.datatypes.IVL_PQ;
 import org.openhealthtools.mdht.uml.hl7.datatypes.IVL_TS;
 import org.openhealthtools.mdht.uml.hl7.datatypes.PIVL_TS;
+import org.openhealthtools.mdht.uml.hl7.datatypes.PN;
 import org.openhealthtools.mdht.uml.hl7.datatypes.PQ;
 import org.openhealthtools.mdht.uml.hl7.datatypes.REAL;
 import org.openhealthtools.mdht.uml.hl7.datatypes.RTO;
@@ -93,6 +95,13 @@ public interface IDataTypesTransformer {
    * @return A BooleanType primitive datatype instance
    */
   BooleanType transformBL2Boolean(BL bl);
+
+  /**
+   * Transforms a CDA CE Entity to a FHIR Codeable Concept Value.
+   * @param ce CDA CE Entity.
+   * @return Codeable Concept.
+   */
+  CodeableConcept transformCE2CodeableConcept(CE ce);
 
   /**
    * Transforms a CDA CD instance to a FHIR CodeableConceptDt composite datatype
@@ -166,6 +175,13 @@ public interface IDataTypesTransformer {
    * @return Human Name
    */
   HumanName transformEN2HumanName(EN en, ConceptMap map);
+
+  /**
+   * Transforms a CDA PN Instance to a FHIR Human Name Composite Data Type.
+   * @param pn CDA PN Entity.
+   * @return FHIR Human Name.
+   */
+  HumanName transformPN2HumanName(PN pn);
 
   /**
    * Transforms a CDA II instance to a FHIR IdentifierDt composite datatype

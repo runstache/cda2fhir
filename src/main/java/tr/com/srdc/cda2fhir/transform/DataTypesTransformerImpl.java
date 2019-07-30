@@ -70,6 +70,7 @@ import org.openhealthtools.mdht.uml.hl7.datatypes.ADXP;
 import org.openhealthtools.mdht.uml.hl7.datatypes.BIN;
 import org.openhealthtools.mdht.uml.hl7.datatypes.BL;
 import org.openhealthtools.mdht.uml.hl7.datatypes.CD;
+import org.openhealthtools.mdht.uml.hl7.datatypes.CE;
 import org.openhealthtools.mdht.uml.hl7.datatypes.CV;
 import org.openhealthtools.mdht.uml.hl7.datatypes.DatatypesFactory;
 import org.openhealthtools.mdht.uml.hl7.datatypes.ED;
@@ -80,6 +81,7 @@ import org.openhealthtools.mdht.uml.hl7.datatypes.INT;
 import org.openhealthtools.mdht.uml.hl7.datatypes.IVL_PQ;
 import org.openhealthtools.mdht.uml.hl7.datatypes.IVL_TS;
 import org.openhealthtools.mdht.uml.hl7.datatypes.PIVL_TS;
+import org.openhealthtools.mdht.uml.hl7.datatypes.PN;
 import org.openhealthtools.mdht.uml.hl7.datatypes.PQ;
 import org.openhealthtools.mdht.uml.hl7.datatypes.PQR;
 import org.openhealthtools.mdht.uml.hl7.datatypes.REAL;
@@ -251,6 +253,41 @@ public class DataTypesTransformerImpl implements IDataTypesTransformer, Serializ
    */
   public BooleanType transformBL2Boolean(BL bl) {
     return (bl == null || bl.isSetNullFlavor()) ? null : new BooleanType(bl.getValue());
+  }
+
+  /**
+   * Transforms a CDA CE Entity to a FHIR Codeable Concept Value.
+   * @param ce CDA CE Entity.
+   * @return Codeable Concept.
+   */
+  public CodeableConcept transformCE2CodeableConcept(CE ce) {
+
+    CodeableConcept concept = new CodeableConcept();
+    if (ce.getOriginalText() != null 
+        && ce.getOriginalText().getText() != null) {
+      concept.setText(ce.getOriginalText().getText());
+
+    }
+
+    Coding coding = new Coding();
+    if (ce.getCode() != null) {
+      coding.setCode(ce.getCode());      
+    }
+
+    if (ce.getCodeSystem() != null) {
+      coding.setSystem(ce.getCodeSystem());
+    }
+
+    if (ce.getDisplayName() != null) {
+      coding.setDisplay(ce.getDisplayName());
+    }
+    if (coding.getSystem() != null 
+        || coding.getCode() != null 
+        || coding.getDisplay() != null) {
+
+      concept.addCoding(coding);
+    }
+    return concept;
   }
 
   /**
@@ -583,6 +620,57 @@ public class DataTypesTransformerImpl implements IDataTypesTransformer, Serializ
 
     return name;
 
+  }
+
+  /**
+   * Transforms a CDA PN person Name Entity into a FHIR Human Name.
+   * @param pn CDA Person Name Entitiy.
+   * @return FHIR Human Name.
+   */
+  public HumanName transformPN2HumanName(PN pn) {
+    HumanName name = new HumanName();
+    
+    // Name Text
+    if (pn.getText() != null) {
+      name.setText(pn.getText());
+    }
+
+    
+    //Givens
+    for (ENXP given : pn.getGivens()) {
+      name.addGiven(given.getText());
+    }
+
+    //Families
+    for (ENXP family : pn.getFamilies()) {
+      name.setFamily(family.getText());
+    }
+
+    // Suffixes
+    
+    for (ENXP suffix : pn.getSuffixes()) {
+      name.addSuffix(suffix.getText());
+    }
+
+    // Prefixes
+    for (ENXP prefix : pn.getPrefixes()) {
+      name.addPrefix(prefix.getText());
+    }
+
+    // Use
+    for (EntityNameUse use : pn.getUses()) {
+      vst.transformEntityNameUse2NameUse(use);
+    }
+
+    // Validation Time -> period
+    if (pn.getValidTime() != null && !pn.getValidTime().isSetNullFlavor()) {
+      name.setPeriod(transformIvl_TS2Period(pn.getValidTime()));
+    }
+
+
+
+
+    return name;
   }
 
   /**
