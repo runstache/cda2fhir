@@ -54,7 +54,12 @@ public class UuidFactory {
       if (ids != null && ids.size() > 0) {
         UUID guid = null;
         for (Identifier id : ids) {
-          String keyValue = id.getSystem() + "|" + id.getValue();
+          String keyValue = 
+              resource.getClass().getName() 
+                + "|" 
+                + id.getSystem() 
+                + "|" 
+                + id.getValue();
           if (guids.containsKey(keyValue)) {
             UUID tempGuid = guids.get(keyValue);
             if (guid != null && tempGuid != guid) {
@@ -77,7 +82,7 @@ public class UuidFactory {
         if (resource instanceof Organization) {
           Organization org = (Organization)resource;
           if (org.getName() != null) {
-            return addKey(org.getName());
+            return addKey(org.getClass().getName() + "|" + org.getName());
           }
         }
 
@@ -86,7 +91,7 @@ public class UuidFactory {
           if (med.getCode() != null && med.getCode().getCoding() != null) {
             Coding mdCode = med.getCode().getCodingFirstRep();
             if (mdCode.getSystem() != null && mdCode.getCode() != null) {
-              key = mdCode.getSystem() + "|" + mdCode.getCode();
+              key = mdCode.getClass().getName() + "|" + mdCode.getSystem() + "|" + mdCode.getCode();
               return addKey(key);
             } else {
               if (mdCode.getCode() != null) {

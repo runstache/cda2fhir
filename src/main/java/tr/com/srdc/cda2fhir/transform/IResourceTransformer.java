@@ -16,6 +16,7 @@ import org.hl7.fhir.dstu3.model.Substance;
 import org.openhealthtools.mdht.uml.cda.AssignedAuthor;
 import org.openhealthtools.mdht.uml.cda.AssignedEntity;
 import org.openhealthtools.mdht.uml.cda.ClinicalDocument;
+import org.openhealthtools.mdht.uml.cda.EncompassingEncounter;
 import org.openhealthtools.mdht.uml.cda.Entity;
 import org.openhealthtools.mdht.uml.cda.LanguageCommunication;
 import org.openhealthtools.mdht.uml.cda.ManufacturedProduct;
@@ -23,6 +24,7 @@ import org.openhealthtools.mdht.uml.cda.ParticipantRole;
 import org.openhealthtools.mdht.uml.cda.PatientRole;
 import org.openhealthtools.mdht.uml.cda.Performer2;
 import org.openhealthtools.mdht.uml.cda.Section;
+import org.openhealthtools.mdht.uml.cda.ServiceEvent;
 import org.openhealthtools.mdht.uml.cda.consol.AllergyProblemAct;
 import org.openhealthtools.mdht.uml.cda.consol.FamilyHistoryOrganizer;
 import org.openhealthtools.mdht.uml.cda.consol.ImmunizationActivity;
@@ -163,6 +165,28 @@ public interface IResourceTransformer {
    */
   Bundle transformEncounterActivity2Encounter(
         org.openhealthtools.mdht.uml.cda.consol.EncounterActivities cdaEncounterActivity);
+
+  /**
+   * Transforms an Encompasing Encounter CDA Element into a FHIR Episode of Care.
+   * @param encounter CDA Encompasing Encounter Element.
+   * @return FHIR EpisodeOfCare
+   */
+  Bundle transformEncompassingEncounter2EpisodeOfCare(EncompassingEncounter encounter);
+
+  /**
+   * Transforms an Encompassing Encounter CDA Element into a FHIR Care Team.
+   * @param encounter Encompassing Encounter Element
+   * @return FHIR Care Team.
+   */
+  Bundle transformEncompassingEncounter2CareTeam(EncompassingEncounter encounter);
+
+  /**
+   * Transforms a Service Event CDA Element into a FHIR Care Team.
+   * @param serviceEvent CDA Service Event Entity.
+   * @return FHIR Care Team.
+   */
+  Bundle transformServiceEvent2CareTeam(ServiceEvent serviceEvent);
+
 
   /**
    * Transforms a CDA Entity instance to a FHIR Group resource.
