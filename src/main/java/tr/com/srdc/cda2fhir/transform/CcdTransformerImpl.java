@@ -94,6 +94,7 @@ public class CcdTransformerImpl implements ICdaTransformer, Serializable {
   private IdGeneratorEnum idGenerator;
   private IResourceTransformer resTransformer;
   private Reference patientRef;
+  private List<ConceptMap> maps;
 
   private final Logger logger = LoggerFactory.getLogger(CcdTransformerImpl.class);
 
@@ -120,8 +121,17 @@ public class CcdTransformerImpl implements ICdaTransformer, Serializable {
     this.idGenerator = idGen;
   }
 
+  public CcdTransformerImpl(List<ConceptMap> maps) {
+    this();
+    this.maps = maps;
+  }
+
   public Reference getPatientRef() {
     return patientRef;
+  }
+
+  public List<ConceptMap> getMaps() {
+    return this.maps;
   }
 
   /**
@@ -460,11 +470,6 @@ public class CcdTransformerImpl implements ICdaTransformer, Serializable {
     return cdaBundle;
 
 
-  }
-
-  @Override
-  public Bundle transformDocument(ClinicalDocument cda, List<ConceptMap> maps) {
-    return null;
   }
 
   /**

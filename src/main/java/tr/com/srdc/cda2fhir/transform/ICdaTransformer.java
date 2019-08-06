@@ -67,17 +67,6 @@ public interface ICdaTransformer {
   Bundle transformDocument(ClinicalDocument cda);
 
   /**
-   * Transforms a Clinical Document Architecture Document 
-   * into an Instance of a FHIR Bundle of Resources.
-   * @param cda A Clinical Document Instance to Transform.
-   * @param maps A Collection of Concept Maps to handle mapping CDA Codes to FHIR.
-   * @return A FHIR Bundle that contains a Composition corresponding to the CDA
-   *         document and all other resources that are referenced within the
-   *         Composition.
-   */
-  Bundle transformDocument(ClinicalDocument cda, List<ConceptMap> maps);
-
-  /**
    * Transforms a Clinical Document Architecture Document
    * into an instance of a FHIR Bundle of Resources with a given type.
    * @param cda Clinical Document Instance to transfrom.
@@ -87,4 +76,12 @@ public interface ICdaTransformer {
    *         Composition.
    */
   Bundle transformDocument(ClinicalDocument cda, BundleType type);
+
+  /**
+   * Returns the Concept Maps that were passed in during instantiation.
+   * @return List of FHIR Concept Maps.
+   */
+  List<ConceptMap> getMaps();
+
+  
 }

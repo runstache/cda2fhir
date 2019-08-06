@@ -210,21 +210,14 @@ public class ResourceTransformerImpl implements IResourceTransformer, Serializab
     guidFactory = new UuidFactory();
   }
 
+  /**
+   * Sets the Available Concept Maps to the items passed to the CDA Transformer.
+   */
   public ResourceTransformerImpl(ICdaTransformer cdaTransformer) {
     this();
     cdat = cdaTransformer;
+    this.conceptMaps = cdaTransformer.getMaps();
   }
-
-  public ResourceTransformerImpl(ICdaTransformer cdaTransformer, List<ConceptMap> conceptMaps) {
-    this();
-    cdat = cdaTransformer;
-  }
-
-  public ResourceTransformerImpl(List<ConceptMap> conceptMaps) {
-    this();
-    this.conceptMaps = conceptMaps;
-  }
-
 
   protected String getUniqueId() {
     if (cdat != null) {
@@ -2456,9 +2449,31 @@ public class ResourceTransformerImpl implements IResourceTransformer, Serializab
           && !cdaImmunizationActivity.getStatusCode().getCode().isEmpty()) {
             
         try {
-          //TODO: Implement Concept Map
-          fhirImmunization.setStatus(
-              ImmunizationStatus.fromCode(cdaImmunizationActivity.getStatusCode().getCode()));
+          if (conceptMaps != null) {
+            if (conceptMaps.stream()
+                .anyMatch(c -> c.getIdentifier().getSystem().contains("immunization.status"))) {
+              Optional<ConceptMap> map = 
+                  conceptMaps.stream()
+                    .filter(c -> c.getIdentifier().getSystem().contains("immunization.status"))
+                    .findFirst();
+              if (map.isPresent()) {
+                vst.transformCdaValueToFhirCodeValue(
+                      cdaImmunizationActivity.getStatusCode().getCode(), 
+                      map.get(), 
+                      ImmunizationStatus.class);
+              } else {
+                fhirImmunization.setStatus(
+                    ImmunizationStatus.fromCode(cdaImmunizationActivity.getStatusCode().getCode()));
+              }
+            } else {
+              fhirImmunization.setStatus(
+                  ImmunizationStatus.fromCode(cdaImmunizationActivity.getStatusCode().getCode()));
+            }
+          } else {
+            fhirImmunization.setStatus(
+                ImmunizationStatus.fromCode(cdaImmunizationActivity.getStatusCode().getCode()));
+          }
+
         } catch (FHIRException ex) {
           logger.warn("Unable to map Immunization Activity Status Code " 
               + cdaImmunizationActivity.getStatusCode().getCode() 
@@ -2768,7 +2783,6 @@ public class ResourceTransformerImpl implements IResourceTransformer, Serializab
    */
   public Bundle transformMedicationActivity2MedicationStatement(
         MedicationActivity cdaMedicationActivity) {
-    //TODO: Review Medications
     if (cdaMedicationActivity == null || cdaMedicationActivity.isSetNullFlavor()) {
       return null;
     }
