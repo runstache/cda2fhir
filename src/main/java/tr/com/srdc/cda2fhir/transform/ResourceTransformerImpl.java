@@ -32,6 +32,8 @@ import org.hl7.fhir.dstu3.model.AllergyIntolerance.AllergyIntoleranceReactionCom
 import org.hl7.fhir.dstu3.model.BooleanType;
 import org.hl7.fhir.dstu3.model.Bundle;
 import org.hl7.fhir.dstu3.model.Bundle.BundleEntryComponent;
+import org.hl7.fhir.dstu3.model.CareTeam;
+import org.hl7.fhir.dstu3.model.CareTeam.CareTeamParticipantComponent;
 import org.hl7.fhir.dstu3.model.CodeableConcept;
 import org.hl7.fhir.dstu3.model.Coding;
 import org.hl7.fhir.dstu3.model.Composition;
@@ -51,6 +53,7 @@ import org.hl7.fhir.dstu3.model.Encounter.DiagnosisComponent;
 import org.hl7.fhir.dstu3.model.Encounter.EncounterParticipantComponent;
 import org.hl7.fhir.dstu3.model.Encounter.EncounterStatus;
 import org.hl7.fhir.dstu3.model.Enumerations;
+import org.hl7.fhir.dstu3.model.EpisodeOfCare;
 import org.hl7.fhir.dstu3.model.Extension;
 import org.hl7.fhir.dstu3.model.FamilyMemberHistory;
 import org.hl7.fhir.dstu3.model.FamilyMemberHistory.FamilyMemberHistoryConditionComponent;
@@ -95,6 +98,8 @@ import org.openhealthtools.mdht.uml.cda.AssignedEntity;
 import org.openhealthtools.mdht.uml.cda.AssociatedEntity;
 import org.openhealthtools.mdht.uml.cda.Author;
 import org.openhealthtools.mdht.uml.cda.ClinicalDocument;
+import org.openhealthtools.mdht.uml.cda.EncompassingEncounter;
+import org.openhealthtools.mdht.uml.cda.EncounterParticipant;
 import org.openhealthtools.mdht.uml.cda.Entity;
 import org.openhealthtools.mdht.uml.cda.EntryRelationship;
 import org.openhealthtools.mdht.uml.cda.Guardian;
@@ -105,11 +110,13 @@ import org.openhealthtools.mdht.uml.cda.Participant1;
 import org.openhealthtools.mdht.uml.cda.Participant2;
 import org.openhealthtools.mdht.uml.cda.ParticipantRole;
 import org.openhealthtools.mdht.uml.cda.PatientRole;
+import org.openhealthtools.mdht.uml.cda.Performer1;
 import org.openhealthtools.mdht.uml.cda.Performer2;
 import org.openhealthtools.mdht.uml.cda.Person;
 import org.openhealthtools.mdht.uml.cda.ReferenceRange;
 import org.openhealthtools.mdht.uml.cda.RelatedSubject;
 import org.openhealthtools.mdht.uml.cda.Section;
+import org.openhealthtools.mdht.uml.cda.ServiceEvent;
 import org.openhealthtools.mdht.uml.cda.SubjectPerson;
 import org.openhealthtools.mdht.uml.cda.Supply;
 import org.openhealthtools.mdht.uml.cda.consol.AllergyObservation;
@@ -520,10 +527,7 @@ public class ResourceTransformerImpl implements IResourceTransformer, Serializab
       return null;
     }
       
-
     Practitioner fhirPractitioner = new Practitioner();
-
-
 
     // meta.profile
     if (Config.isGenerateDafProfileMetadata()) {
@@ -537,6 +541,11 @@ public class ResourceTransformerImpl implements IResourceTransformer, Serializab
           fhirPractitioner.addIdentifier(dtt.transformII2Identifier(ii));
         }
       }
+    } 
+
+    //If we can't establish an Identifier, do not include
+    if (fhirPractitioner.getIdentifier() == null || fhirPractitioner.getIdentifier().isEmpty()) {
+      return null;
     }
 
     //Set the Id
@@ -588,30 +597,42 @@ public class ResourceTransformerImpl implements IResourceTransformer, Serializab
     String idValue = fhirPractitioner.getIdentifierFirstRep().getValue();
 
     // code -> practitionerRole.role
-    if (cdaAssignedAuthor.getCode() != null && !cdaAssignedAuthor.isSetNullFlavor()) {
-      fhirPractitionerRole.addCode(dtt.transformCD2CodeableConcept(cdaAssignedAuthor.getCode()));
-      idValue += "-" + cdaAssignedAuthor.getCode().getCode();
-    }
+    if (cdaAssignedAuthor.getCode() != null) {
+      if (!cdaAssignedAuthor.getCode().isSetNullFlavor()) {
+        fhirPractitionerRole.addCode(dtt.transformCD2CodeableConcept(cdaAssignedAuthor.getCode()));
+        idValue += "-" + cdaAssignedAuthor.getCode().getCode();
+      } else {
+        if (cdaAssignedAuthor.getCode().getOriginalText() != null) {
+          fhirPractitionerRole.addCode(
+              new CodeableConcept()
+                .setText(cdaAssignedAuthor.getCode().getOriginalText().getText()));
+          idValue += "-" + cdaAssignedAuthor.getCode().getOriginalText().getText();
+        }
+      }
+    } 
 
     // representedOrganization -> practitionerRole.managingOrganization
     if (cdaAssignedAuthor.getRepresentedOrganization() != null
         && !cdaAssignedAuthor.getRepresentedOrganization().isSetNullFlavor()) {
       Organization fhirOrganization = 
           transformOrganization2Organization(
-              cdaAssignedAuthor.getRepresentedOrganization());                  
-      fhirPractitionerRole.setOrganization(new Reference(fhirOrganization.getId()));
-      idValue += "-" + fhirOrganization.getIdentifierFirstRep().getValue();
+              cdaAssignedAuthor.getRepresentedOrganization());   
+      if (fhirOrganization.getIdentifier() != null) {               
+        fhirPractitionerRole.setOrganization(new Reference(fhirOrganization.getId()));
+        idValue += "-" + fhirOrganization.getIdentifierFirstRep().getValue();
 
-      if (!extistsInBundle(fhirPractitionerBundle, fhirOrganization.getId())) {      
-        fhirPractitionerBundle.addEntry(new BundleEntryComponent()
-            .setResource(fhirOrganization)
-            .setFullUrl(fhirOrganization.getId()));
+        if (!extistsInBundle(fhirPractitionerBundle, fhirOrganization.getId())) {      
+          fhirPractitionerBundle.addEntry(new BundleEntryComponent()
+              .setResource(fhirOrganization)
+              .setFullUrl(fhirOrganization.getId()));
+        }
       }
     }
     
 
     Identifier id = new Identifier();
-    id.setSystem("urn:oid:practitioner.role.oid");
+    id.setSystem("urn:oid:"
+        + Constants.PRACTITIONER_ROLE_IDENTIFIER_SYSYETM);
     id.setValue(idValue);
     
     fhirPractitionerRole.addIdentifier(id);
@@ -624,7 +645,8 @@ public class ResourceTransformerImpl implements IResourceTransformer, Serializab
     fhirPractitionerRole.setPractitioner(new Reference(fhirPractitioner.getId()));
     //Add the Practitioner Role to the Bundle.
     if (fhirPractitionerRole.getPractitioner() != null 
-            && fhirPractitionerRole.getCode() != null
+            && !fhirPractitionerRole.getCode().isEmpty()
+            && !fhirPractitionerRole.getOrganization().isEmpty()
             && !extistsInBundle(fhirPractitionerBundle, fhirPractitionerRole.getId())) {
       fhirPractitionerBundle.addEntry(
           new BundleEntryComponent()
@@ -645,8 +667,6 @@ public class ResourceTransformerImpl implements IResourceTransformer, Serializab
 
     Practitioner fhirPractitioner = new Practitioner();
 
-
-
     // meta.profile
     if (Config.isGenerateDafProfileMetadata()) {
       fhirPractitioner.getMeta().addProfile(Constants.PROFILE_DAF_PRACTITIONER);
@@ -659,6 +679,9 @@ public class ResourceTransformerImpl implements IResourceTransformer, Serializab
           fhirPractitioner.addIdentifier(dtt.transformII2Identifier(id));
         }
       }
+    }
+    if (fhirPractitioner.getIdentifier() == null || fhirPractitioner.getIdentifier().isEmpty()) {
+      return null;
     }
     
     // resource id
@@ -706,11 +729,19 @@ public class ResourceTransformerImpl implements IResourceTransformer, Serializab
     PractitionerRole fhirPractitionerRole = new PractitionerRole();
     String idValue = fhirPractitioner.getIdentifierFirstRep().getValue();
     // code -> practitionerRole.role
-    if (cdaAssignedEntity.getCode() != null && !cdaAssignedEntity.isSetNullFlavor()) {
-      fhirPractitionerRole.addCode(dtt.transformCD2CodeableConcept(cdaAssignedEntity.getCode()));
-      idValue += "-" + fhirPractitionerRole.getCodeFirstRep().getCodingFirstRep().getCode();
+    if (cdaAssignedEntity.getCode() != null) {
+      if (!cdaAssignedEntity.getCode().isSetNullFlavor()) {
+        fhirPractitionerRole.addCode(dtt.transformCD2CodeableConcept(cdaAssignedEntity.getCode()));
+        idValue += "-" + fhirPractitionerRole.getCodeFirstRep().getCodingFirstRep().getCode();
+      } else {
+        if (cdaAssignedEntity.getCode().getOriginalText() != null) {
+          fhirPractitionerRole.addCode(
+                new CodeableConcept()
+                  .setText(cdaAssignedEntity.getCode().getOriginalText().getText()));
+          idValue += "-" + fhirPractitionerRole.getCodeFirstRep().getText();
+        }
+      }     
     }
-
     // representedOrganization -> practitionerRole.organization
     // NOTE: we skipped multiple instances of representated organization; we just
     // omit apart from the first
@@ -720,32 +751,34 @@ public class ResourceTransformerImpl implements IResourceTransformer, Serializab
           && !cdaAssignedEntity.getRepresentedOrganizations().get(0).isSetNullFlavor()) {
         Organization fhirOrganization = transformOrganization2Organization(
             cdaAssignedEntity.getRepresentedOrganizations().get(0));
-        fhirPractitionerRole.setOrganization(new Reference(fhirOrganization.getId()));
+        if (fhirOrganization.getIdentifier() != null) {          
+          fhirPractitionerRole.setOrganization(new Reference(fhirOrganization.getId()));
             
-        if (!extistsInBundle(fhirPractitionerBundle, fhirOrganization.getId())) {      
-          fhirPractitionerBundle.addEntry(new BundleEntryComponent()
-              .setResource(fhirOrganization)
-              .setFullUrl(fhirOrganization.getId()));
-        }    
-        idValue += "-" + fhirOrganization.getIdentifierFirstRep().getValue();        
+          if (!extistsInBundle(fhirPractitionerBundle, fhirOrganization.getId())) {      
+            fhirPractitionerBundle.addEntry(new BundleEntryComponent()
+                .setResource(fhirOrganization)
+                .setFullUrl(fhirOrganization.getId()));
+          }    
+          idValue += "-" + fhirOrganization.getIdentifierFirstRep().getValue();        
+        }
       }
     }
     
-
-
     fhirPractitionerRole.setPractitioner(new Reference(fhirPractitioner.getId()));
-    if (fhirPractitionerRole.getCode() != null 
-        && fhirPractitionerRole.getPractitioner() != null) {
+    if (!fhirPractitionerRole.getCode().isEmpty() 
+        && !fhirPractitionerRole.getPractitioner().isEmpty()
+        && !fhirPractitionerRole.getOrganization().isEmpty()) {
 
       Identifier id = new Identifier();
-      id.setSystem("urn:oid:practitioner.role.oid");
+      id.setSystem("urn:oid:" 
+          + Constants.PRACTITIONER_ROLE_IDENTIFIER_SYSYETM);
       id.setValue(idValue);
-
+      fhirPractitionerRole.addIdentifier(id);
       IdType practId = new IdType(
             "PractitionerRole", 
             "urn:uuid:" + guidFactory.addKey(fhirPractitionerRole).toString());
       fhirPractitionerRole.setId(practId);
-      fhirPractitionerRole.addIdentifier(id);
+
 
       if (!extistsInBundle(fhirPractitionerBundle, fhirPractitionerRole.getId())) {
         fhirPractitionerBundle.addEntry(
@@ -1507,6 +1540,258 @@ public class ResourceTransformerImpl implements IResourceTransformer, Serializab
       }
     }
     return fhirEncounterBundle;
+  }
+
+  /**
+   * Transforms a given Encompassing Encounter to an Episode of Care FHIR Resource.
+   * @param encounter CDA Encompasing Encounter Element
+   * @return Episode of Care
+   */
+  public Bundle transformEncompassingEncounter2EpisodeOfCare(EncompassingEncounter encounter) {
+    
+    if (encounter == null || encounter.isSetNullFlavor()) {
+      return null;
+    }
+
+    EpisodeOfCare eoc = new EpisodeOfCare();
+
+    //Identifiers
+    if (encounter.getIds() != null) {
+      for (II ii : encounter.getIds()) {
+        Identifier id = dtt.transformII2Identifier(ii);
+        eoc.addIdentifier(id);
+      }
+    }
+
+    Bundle bundle = new Bundle();
+    //Set the Id
+    IdType idType = new IdType("EpisodeOfCare","urn:uuid:" + guidFactory.addKey(eoc));
+    eoc.setId(idType);
+    bundle.addEntry(new BundleEntryComponent().setResource(eoc).setFullUrl(idType.getValue()));
+
+    //Type
+    if (encounter.getCode() != null && !encounter.getCode().isSetNullFlavor()) {
+      eoc.addType(dtt.transformCE2CodeableConcept(encounter.getCode()));
+    }
+
+    //Patient
+    eoc.setPatient(getPatientRef());
+
+    //CareManager
+    if (encounter.getEncounterParticipants() != null) {
+      //If the Participants are > 1, create a care team.
+      //Else set the participant as the Care Manager.
+      if (encounter.getEncounterParticipants().size() > 1) {
+        Bundle careTeamBundle = transformEncompassingEncounter2CareTeam(encounter);
+        if (careTeamBundle != null) {
+          for (BundleEntryComponent entry : careTeamBundle.getEntry()) {
+            if (entry.getResource() instanceof CareTeam) {
+              //Add the Participants Care Team to the Teams of the EOC.
+              eoc.addTeam(new Reference(entry.getFullUrl()));
+            }
+            if (!extistsInBundle(bundle, entry.getFullUrl())) {
+              bundle.addEntry(new BundleEntryComponent()
+                  .setResource(entry.getResource())
+                  .setFullUrl(entry.getFullUrl()));
+            }
+          }
+        }
+
+      } else {
+        if (encounter.getEncounterParticipants() != null 
+            && !encounter.getEncounterParticipants().isEmpty()) {
+          EncounterParticipant participant = encounter.getEncounterParticipants().get(0);
+          if (participant.getAssignedEntity() != null 
+              && !participant.getAssignedEntity().isSetNullFlavor()) {
+            Bundle pracBundle = 
+                transformAssignedEntity2Practitioner(participant.getAssignedEntity());
+            for (BundleEntryComponent entry : pracBundle.getEntry()) {
+              if (entry.getResource() instanceof Practitioner) {
+                //Add the reference to the EOC
+                eoc.setCareManager(new Reference(entry.getFullUrl()));
+              }
+              if (!extistsInBundle(bundle, entry.getFullUrl())) {
+                bundle.addEntry(new BundleEntryComponent()
+                    .setResource(entry.getResource())
+                    .setFullUrl(entry.getFullUrl()));
+              }
+            }
+          }
+        }
+      }
+    }
+
+    //Period
+    if (encounter.getEffectiveTime() != null 
+        && !encounter.getEffectiveTime().isSetNullFlavor()) {
+      eoc.setPeriod(dtt.transformIvl_TS2Period(encounter.getEffectiveTime()));
+    }
+    return bundle;
+  }
+
+  /**
+   * transforms a CDA Service Event into a FHIR CareTeam.
+   * @param serviceEvent CDA Service Event Entity
+   * @return FHIR Care Team.
+   */
+  public Bundle transformServiceEvent2CareTeam(ServiceEvent serviceEvent) {
+
+    if (serviceEvent == null  || serviceEvent.isSetNullFlavor()) {
+      return null;
+    }
+
+    CareTeam fhirTeam = new CareTeam();
+    //Identifier
+    Identifier identifier = new Identifier();
+    identifier.setSystem("urn:oid:" + Constants.CARETEAM_IDENTIFIER_SYSTEM);
+    if (serviceEvent.getEffectiveTime() != null 
+        && !serviceEvent.getEffectiveTime().isSetNullFlavor())  {      
+      if (serviceEvent.getEffectiveTime().getLow() != null) {
+        identifier.setValue(serviceEvent.getEffectiveTime().getHigh().getValue());
+      } else {
+        if (serviceEvent.getEffectiveTime().getHigh() != null) {
+          identifier.setValue(serviceEvent.getEffectiveTime().getHigh().getValue());
+        } else {
+          if (serviceEvent.getClassCode().getName() != null) {
+            identifier.setValue(serviceEvent.getClassCode().getName());
+          }
+        }
+      }
+    } else {
+      if (serviceEvent.getClassCode().getName() != null) {
+        identifier.setValue(serviceEvent.getClassCode().getName());
+      }
+    }
+    fhirTeam.addIdentifier(identifier);
+    
+    //Id
+    IdType teamId = new IdType("CareTeam", "urn:uuid:" + guidFactory.addKey(fhirTeam));
+    fhirTeam.setId(teamId);
+
+    Bundle bundle = new Bundle();
+    bundle.addEntry(new BundleEntryComponent().setResource(fhirTeam).setFullUrl(teamId.getValue()));
+    
+    //Period
+    Period period = null;
+    if (serviceEvent.getEffectiveTime() != null 
+        && !serviceEvent.getEffectiveTime().isSetNullFlavor()) {
+      period = dtt.transformIvl_TS2Period(serviceEvent.getEffectiveTime());
+      fhirTeam.setPeriod(period);
+    }
+
+    //Add the participants
+    if (serviceEvent.getPerformers() != null) {
+      for (Performer1 cdaPerformer : serviceEvent.getPerformers()) {
+        Bundle fhirParticipants = transformPerformer12Practitioner(cdaPerformer);
+        if (fhirParticipants != null) {
+          for (BundleEntryComponent entry : fhirParticipants.getEntry()) {
+            if (entry.getResource() instanceof Practitioner) {
+              CareTeamParticipantComponent component = new CareTeamParticipantComponent();
+              component.setMember(new Reference(entry.getFullUrl()));
+              if (period !=  null) {
+                component.setPeriod(period);
+              }
+              if (cdaPerformer.getFunctionCode() != null 
+                  && !cdaPerformer.getFunctionCode().isSetNullFlavor()) {
+                component.setRole(dtt.transformCE2CodeableConcept(cdaPerformer.getFunctionCode()));
+              }
+              fhirTeam.addParticipant(component);        
+            }
+            if (!extistsInBundle(bundle, entry.getFullUrl())) {
+              bundle.addEntry(new BundleEntryComponent()
+                  .setResource(entry.getResource())
+                  .setFullUrl(entry.getFullUrl()));
+            }
+          }
+        }
+      }
+    }
+
+    //Set the Patient Reference
+    fhirTeam.setSubject(getPatientRef());
+    
+    return bundle;
+  }
+
+  /**
+   * Transforms an Encompassing Encounter into a FHIR Care Team.
+   * @param encounter Encompassing Encounter.
+   * @return FHIR Care Team.
+   */
+  public Bundle transformEncompassingEncounter2CareTeam(EncompassingEncounter encounter) {
+
+    if (encounter == null || encounter.isSetNullFlavor()) {
+      return null;
+    }
+
+    CareTeam careTeam = new CareTeam();
+
+    if (encounter.getIds() != null) {
+      for (II id : encounter.getIds()) {
+        Identifier identifier = new Identifier();
+        identifier.setSystem("urn:oid:" + Constants.CARETEAM_IDENTIFIER_SYSTEM);
+        identifier.setValue(id.getExtension());
+        careTeam.addIdentifier(identifier);
+      }
+    }
+
+    //Set the Id
+    IdType ctId = new IdType("CareTeam", "urn:uuid:" + guidFactory.addKey(careTeam));
+    careTeam.setId(ctId);
+
+    //Bundle
+    Bundle bundle = new Bundle();
+    bundle.addEntry(new BundleEntryComponent()
+        .setResource(careTeam)
+        .setFullUrl(careTeam.getId()));
+    
+    //Period
+    Period period = null;
+    if (encounter.getEffectiveTime() != null && !encounter.getEffectiveTime().isSetNullFlavor()) {
+      period = dtt.transformIvl_TS2Period(encounter.getEffectiveTime());
+      careTeam.setPeriod(period);
+    }
+
+    //Set the Category
+    //Assuming this is an Encounter Care Team 
+    //since we are building from an Encompassing Encounter.
+    careTeam.addCategory(
+        new CodeableConcept().addCoding(
+            new Coding(Constants.CARETEAM_CATEGORY_SYSTEM, "encounter", "Encounter")));
+
+    //Add the Participants
+    if (encounter.getEncounterParticipants() != null) {
+      for (EncounterParticipant participant : encounter.getEncounterParticipants()) {
+        if (participant.getAssignedEntity() != null 
+            && !participant.getAssignedEntity().isSetNullFlavor()) {
+          Bundle result = transformAssignedEntity2Practitioner(participant.getAssignedEntity());
+          for (BundleEntryComponent entry : result.getEntry()) {
+            if (entry.getResource() instanceof Practitioner) {
+              CareTeamParticipantComponent component = new CareTeamParticipantComponent();
+              if (participant.getAssignedEntity().getCode() != null 
+                  && !participant.getAssignedEntity().getCode().isSetNullFlavor()) {
+                CodeableConcept concept = 
+                    dtt.transformCE2CodeableConcept(participant.getAssignedEntity().getCode());
+                component.setRole(concept);
+              }
+              component.setMember(new Reference(entry.getFullUrl()));
+              if (period != null) {
+                component.setPeriod(period);                
+              }
+              careTeam.addParticipant(component);
+              if (!extistsInBundle(bundle, entry.getFullUrl())) {
+                bundle.addEntry(new BundleEntryComponent()
+                    .setResource(entry.getResource())
+                    .setFullUrl(entry.getFullUrl()));
+              }
+            }
+          }
+        }
+      }
+    }
+  
+
+    return bundle;
   }
 
   /**
@@ -2471,14 +2756,13 @@ public class ResourceTransformerImpl implements IResourceTransformer, Serializab
    */
   public Bundle transformMedicationActivity2MedicationStatement(
         MedicationActivity cdaMedicationActivity) {
+    //TODO: Review Medications
     if (cdaMedicationActivity == null || cdaMedicationActivity.isSetNullFlavor()) {
       return null;
     }
 
     MedicationStatement fhirMedSt = new MedicationStatement();
     Dosage fhirDosage = fhirMedSt.addDosage();
-
-
 
     // meta.profile
     if (Config.isGenerateDafProfileMetadata()) {
@@ -2527,17 +2811,19 @@ public class ResourceTransformerImpl implements IResourceTransformer, Serializab
       if (!cdaMedicationActivity.getAuthors().get(0).isSetNullFlavor()) {
         Bundle practBundle = 
             transformAuthor2Practitioner(cdaMedicationActivity.getAuthors().get(0));
-        for (BundleEntryComponent entry : practBundle.getEntry()) {
-          // Add all the resources returned from the bundle to the main bundle
-          if (!extistsInBundle(medStatementBundle, entry.getFullUrl())) {
-            medStatementBundle.addEntry(new BundleEntryComponent()
-                .setResource(entry.getResource())
-                .setFullUrl(entry.getFullUrl()));
-          }
-          // Add a reference to informationSource attribute only for Practitioner
-          // resource. Further resources can include Organization.
-          if (entry.getResource() instanceof Practitioner) {
-            fhirMedSt.setInformationSource(new Reference(entry.getResource().getId()));
+        if (practBundle != null) {
+          for (BundleEntryComponent entry : practBundle.getEntry()) {
+            // Add all the resources returned from the bundle to the main bundle
+            if (!extistsInBundle(medStatementBundle, entry.getFullUrl())) {
+              medStatementBundle.addEntry(new BundleEntryComponent()
+                  .setResource(entry.getResource())
+                  .setFullUrl(entry.getFullUrl()));
+            }
+            // Add a reference to informationSource attribute only for Practitioner
+            // resource. Further resources can include Organization.
+            if (entry.getResource() instanceof Practitioner) {
+              fhirMedSt.setInformationSource(new Reference(entry.getResource().getId()));
+            }
           }
         }
       }
@@ -3373,6 +3659,33 @@ public class ResourceTransformerImpl implements IResourceTransformer, Serializab
   }
 
   /**
+   * Transforms a CDA Performer 1 to a FHIR Practitioner. 
+   * @param cdaPerformer CDA Performer 1
+   * @return FHIR Bundle
+   */
+  public Bundle transformPerformer12Practitioner(Performer1 cdaPerformer) {
+
+    if (cdaPerformer == null || cdaPerformer.isSetNullFlavor()) {
+      return null;
+    } else {
+      Bundle result = transformAssignedEntity2Practitioner(cdaPerformer.getAssignedEntity());
+      if (result != null 
+          && cdaPerformer.getFunctionCode() != null 
+          && !cdaPerformer.getFunctionCode().isSetNullFlavor()) {
+        for (BundleEntryComponent entry : result.getEntry()) {
+          //Set the Specialty from the Performer Function.
+          if (entry.getResource() instanceof PractitionerRole) {            
+            PractitionerRole role = (PractitionerRole) entry.getResource();
+            role.addSpecialty(dtt.transformCE2CodeableConcept(cdaPerformer.getFunctionCode()));
+            entry.setResource(role);            
+          }
+        }
+      }
+      return result;      
+    }
+  }
+
+  /**
    * Transforms CDA Performer to a FHIR Bundle.
    * @param cdaPerformer2 CDA Performer
    * @return FHIR Bundle
@@ -3380,7 +3693,7 @@ public class ResourceTransformerImpl implements IResourceTransformer, Serializab
   public Bundle transformPerformer22Practitioner(Performer2 cdaPerformer2) {
     if (cdaPerformer2 == null || cdaPerformer2.isSetNullFlavor()) {
       return null;
-    } else {
+    } else {      
       return transformAssignedEntity2Practitioner(cdaPerformer2.getAssignedEntity());
     }
 

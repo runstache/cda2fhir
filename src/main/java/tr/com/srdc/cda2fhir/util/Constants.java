@@ -68,5 +68,11 @@ public class Constants {
   public static final String CONDITION_CATEGORY_SYSTEM = "http://terminology.hl7.org/CodeSystem/condition-category";
   public static final String CONTACT_RELATIONSHIP_SYSTEM = "http://terminology.hl7.org/CodeSystem/v2-0131";
   public static final String IMMUNIZATION_PROVIDER_ROLE_SYSTEM = "http://hl7.org/fhir/v2/0443";
+  public static final String CARETEAM_CATEGORY_SYSTEM = "http://hl7.org/fhir/care-team-category";
+
+  //Resource Default System Identifiers
+  public static final String CARETEAM_IDENTIFIER_SYSTEM = "CDA.CARETEAM.OID";
+  public static final String PRACTITIONER_ROLE_IDENTIFIER_SYSYETM = "PRACTITIONER.ROLE.OID";
+
 
 }

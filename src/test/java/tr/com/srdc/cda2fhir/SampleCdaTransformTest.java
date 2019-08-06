@@ -17,6 +17,8 @@ import org.hl7.fhir.dstu3.model.Resource;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
+import org.openhealthtools.mdht.uml.cda.Component1;
+import org.openhealthtools.mdht.uml.cda.EncompassingEncounter;
 import org.openhealthtools.mdht.uml.cda.consol.ConsolPackage;
 import org.openhealthtools.mdht.uml.cda.consol.ContinuityOfCareDocument;
 import org.openhealthtools.mdht.uml.cda.util.CDAUtil;
@@ -71,6 +73,19 @@ public class SampleCdaTransformTest {
     assertNotNull(ccd);   
   }
 
+  @Test
+  public void testGetEncompassingEncounter() throws Exception {
+    FileInputStream fis = new FileInputStream("c:/docker/data/ccd/sample.xml");
+    ContinuityOfCareDocument ccd = 
+        (ContinuityOfCareDocument)CDAUtil.loadAs(fis, 
+            ConsolPackage.eINSTANCE.getContinuityOfCareDocument());
+    ICdaTransformer transformer = new CcdTransformerImpl(IdGeneratorEnum.UUID);
+    Config.setGenerateDafProfileMetadata(true);
+    Config.setGenerateNarrative(true);
+
+    Component1 comp = ccd.getComponentOf();
+    EncompassingEncounter enc = comp.getEncompassingEncounter();
+  }
 
   private void outputResource(Resource resource, String path) {
     FileWriter writer;

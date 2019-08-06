@@ -3,6 +3,7 @@ package tr.com.srdc.cda2fhir.transform;
 import java.io.Serializable;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 
 import org.hl7.fhir.dstu3.model.AllergyIntolerance;
@@ -11,6 +12,7 @@ import org.hl7.fhir.dstu3.model.Bundle.BundleEntryComponent;
 import org.hl7.fhir.dstu3.model.Bundle.BundleEntryRequestComponent;
 import org.hl7.fhir.dstu3.model.Bundle.BundleType;
 import org.hl7.fhir.dstu3.model.Bundle.HTTPVerb;
+import org.hl7.fhir.dstu3.model.CareTeam;
 import org.hl7.fhir.dstu3.model.Composition;
 import org.hl7.fhir.dstu3.model.Composition.SectionComponent;
 import org.hl7.fhir.dstu3.model.ConceptMap;
@@ -18,6 +20,7 @@ import org.hl7.fhir.dstu3.model.Condition;
 import org.hl7.fhir.dstu3.model.Device;
 import org.hl7.fhir.dstu3.model.DiagnosticReport;
 import org.hl7.fhir.dstu3.model.Encounter;
+import org.hl7.fhir.dstu3.model.EpisodeOfCare;
 import org.hl7.fhir.dstu3.model.FamilyMemberHistory;
 import org.hl7.fhir.dstu3.model.Immunization;
 import org.hl7.fhir.dstu3.model.MedicationStatement;
@@ -26,6 +29,7 @@ import org.hl7.fhir.dstu3.model.Procedure;
 import org.hl7.fhir.dstu3.model.Reference;
 
 import org.openhealthtools.mdht.uml.cda.ClinicalDocument;
+import org.openhealthtools.mdht.uml.cda.DocumentationOf;
 import org.openhealthtools.mdht.uml.cda.Organizer;
 import org.openhealthtools.mdht.uml.cda.Section;
 import org.openhealthtools.mdht.uml.cda.Supply;
@@ -233,6 +237,52 @@ public class CcdTransformerImpl implements ICdaTransformer, Serializable {
       ccdComposition.setSubject(patientRef);
     }
 
+    //Transform the Encompasing Encounter
+    if (ccd.getComponentOf() != null && !ccd.getComponentOf().isSetNullFlavor()) {
+      if (ccd.getComponentOf().getEncompassingEncounter() != null 
+          && !ccd.getComponentOf().getEncompassingEncounter().isSetNullFlavor()) {
+        Bundle eocBundle = 
+            resTransformer.transformEncompassingEncounter2EpisodeOfCare(
+                  ccd.getComponentOf().getEncompassingEncounter());
+        if (eocBundle != null) {
+          
+          if (eocBundle.getEntry()
+              .stream()
+              .anyMatch(c -> c.getResource() instanceof EpisodeOfCare)) {      
+            Optional<BundleEntryComponent> episodeOfCare = 
+                eocBundle.getEntry()
+                    .stream()
+                    .filter(c -> c.getResource() instanceof EpisodeOfCare)
+                    .findFirst();
+            if (episodeOfCare.isPresent()) {
+              //Build the Care team from the Service Event
+              if (ccd.getDocumentationOfs() != null) {
+                for (DocumentationOf doc : ccd.getDocumentationOfs()) {
+                  if (doc.getServiceEvent() != null && !doc.getServiceEvent().isSetNullFlavor()) {
+                    Bundle careTeamBundle = 
+                        resTransformer.transformServiceEvent2CareTeam(doc.getServiceEvent());
+                    if (careTeamBundle != null) {
+                      for (BundleEntryComponent entry : careTeamBundle.getEntry()) {
+                        if (entry.getResource() instanceof CareTeam) {
+                          EpisodeOfCare eoc = (EpisodeOfCare)episodeOfCare.get().getResource();
+                          eoc.addTeam(new Reference(entry.getFullUrl()));
+                        }
+                      }
+                      mergeBundles(careTeamBundle, eocBundle);                  
+                    }
+                  }
+                }
+              }
+            }
+            mergeBundles(eocBundle, ccdBundle);
+            
+          }
+          
+        }
+      }
+    }
+
+
     // transform the sections
     for (Section cdaSec : ccd.getSections()) {
       SectionComponent fhirSec = resTransformer.transformSection2Section(cdaSec);
@@ -242,7 +292,7 @@ public class CcdTransformerImpl implements ICdaTransformer, Serializable {
       } else {
         ccdComposition.addSection(fhirSec);
       }
-
+      
       if (cdaSec instanceof AdvanceDirectivesSection) {
         continue;
       } else if (cdaSec instanceof AllergiesSection) {
@@ -311,6 +361,8 @@ public class CcdTransformerImpl implements ICdaTransformer, Serializable {
             }
           }
         }
+
+        
         // Case 3: Entry is a Procedure Activity Procedure (V2)
         for (org.openhealthtools.mdht.uml.cda.Procedure procedure : equipSec.getProcedures()) {
           if (procedure instanceof ProcedureActivityProcedure) {
@@ -425,8 +477,23 @@ public class CcdTransformerImpl implements ICdaTransformer, Serializable {
           // Observation, Procedure ...
           if (sectionRefCls.isInstance(entry.getResource())) {
             Reference ref = fhirSec.addEntry();
-            ref.setReference(entry.getResource().getId());
+            ref.setReference(entry.getFullUrl());
           }
+        }
+      }
+    }
+  }
+
+  /**
+   * Merges two bundles together into the Target Bundle provided.
+   * @param sourceBundle Source Bundle to merge.
+   * @param targetBundle Target Bundle to return.
+   */
+  private void mergeBundles(Bundle sourceBundle, Bundle targetBundle) {
+    if (sourceBundle != null) {
+      for (BundleEntryComponent entry : sourceBundle.getEntry()) {
+        if (!entryExistsInBundle(targetBundle, entry.getFullUrl())) {
+          targetBundle.addEntry(entry);
         }
       }
     }
