@@ -26,6 +26,7 @@ import org.hl7.fhir.dstu3.model.Immunization;
 import org.hl7.fhir.dstu3.model.MedicationStatement;
 import org.hl7.fhir.dstu3.model.Observation;
 import org.hl7.fhir.dstu3.model.Procedure;
+import org.hl7.fhir.dstu3.model.Provenance;
 import org.hl7.fhir.dstu3.model.Reference;
 
 import org.openhealthtools.mdht.uml.cda.ClinicalDocument;
@@ -419,6 +420,20 @@ public class CcdTransformerImpl implements ICdaTransformer, Serializable {
           }
         }
       }
+    }
+
+    //Add the Document Reference 
+    Bundle docBundle = resTransformer.transformCda2DocumentReference(cda);
+    if (docBundle != null) {
+      mergeBundles(docBundle, ccdBundle);
+    }
+
+    //Create the Provenance
+    Provenance prov = resTransformer.transformBundle2Provenance(ccdBundle);
+    if (prov != null) {
+      ccdBundle.addEntry(new BundleEntryComponent()
+          .setResource(prov)
+          .setFullUrl(prov.getId()));
     }
 
     return ccdBundle;

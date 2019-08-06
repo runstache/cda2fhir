@@ -12,6 +12,7 @@ import org.hl7.fhir.dstu3.model.Observation.ObservationReferenceRangeComponent;
 import org.hl7.fhir.dstu3.model.Organization;
 import org.hl7.fhir.dstu3.model.Patient.ContactComponent;
 import org.hl7.fhir.dstu3.model.Patient.PatientCommunicationComponent;
+import org.hl7.fhir.dstu3.model.Provenance;
 import org.hl7.fhir.dstu3.model.Substance;
 import org.openhealthtools.mdht.uml.cda.AssignedAuthor;
 import org.openhealthtools.mdht.uml.cda.AssignedEntity;
@@ -455,4 +456,19 @@ public interface IResourceTransformer {
    *         Practitioner
    */
   Bundle transformVitalSignObservation2Observation(VitalSignObservation cdaVitalSignObservation);
+
+  /**
+   * Transforms a FHIR Bundle into a Provenance Record representing the FHIR Bundle.
+   * @param fhirBundle FHIR Bundle to transform.
+   * @return Provenance FHIR Resource.
+   */
+  Provenance transformBundle2Provenance(Bundle fhirBundle);
+
+
+  /**
+   * Transforms a CDA Clinical Document into a Document Reference FHIR Resource.
+   * @param cda CDA document to Transform.
+   * @return FHIR Document Reference.
+   */
+  Bundle transformCda2DocumentReference(ClinicalDocument cda);
 }

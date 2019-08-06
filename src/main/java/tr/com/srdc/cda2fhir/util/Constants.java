@@ -73,6 +73,7 @@ public class Constants {
   //Resource Default System Identifiers
   public static final String CARETEAM_IDENTIFIER_SYSTEM = "CDA.CARETEAM.OID";
   public static final String PRACTITIONER_ROLE_IDENTIFIER_SYSYETM = "PRACTITIONER.ROLE.OID";
-
+  public static final String DOCUMENTREF_IDENTIFIER_SYSTEM = "CDA.DOCUMENT.OID";
+  public static final String PROVENANCE_IDENTIFIER_SYSTEM = "CDA.PROVENANCE.OID";
 
 }

@@ -1,5 +1,7 @@
 package tr.com.srdc.cda2fhir.transform;
 
+import java.io.ByteArrayOutputStream;
+
 /*
  * #%L
  * CDA to FHIR Transformer Library
@@ -21,6 +23,7 @@ package tr.com.srdc.cda2fhir.transform;
  */
 
 import java.io.Serializable;
+import java.util.Date;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -29,6 +32,7 @@ import org.hl7.fhir.dstu3.model.Age;
 import org.hl7.fhir.dstu3.model.AllergyIntolerance;
 import org.hl7.fhir.dstu3.model.AllergyIntolerance.AllergyIntoleranceCriticality;
 import org.hl7.fhir.dstu3.model.AllergyIntolerance.AllergyIntoleranceReactionComponent;
+import org.hl7.fhir.dstu3.model.Attachment;
 import org.hl7.fhir.dstu3.model.BooleanType;
 import org.hl7.fhir.dstu3.model.Bundle;
 import org.hl7.fhir.dstu3.model.Bundle.BundleEntryComponent;
@@ -47,12 +51,15 @@ import org.hl7.fhir.dstu3.model.Condition.ConditionClinicalStatus;
 import org.hl7.fhir.dstu3.model.Device;
 import org.hl7.fhir.dstu3.model.DiagnosticReport;
 import org.hl7.fhir.dstu3.model.DiagnosticReport.DiagnosticReportPerformerComponent;
+import org.hl7.fhir.dstu3.model.DocumentReference;
+import org.hl7.fhir.dstu3.model.DocumentReference.DocumentReferenceContentComponent;
 import org.hl7.fhir.dstu3.model.Dosage;
 import org.hl7.fhir.dstu3.model.Encounter;
 import org.hl7.fhir.dstu3.model.Encounter.DiagnosisComponent;
 import org.hl7.fhir.dstu3.model.Encounter.EncounterParticipantComponent;
 import org.hl7.fhir.dstu3.model.Encounter.EncounterStatus;
 import org.hl7.fhir.dstu3.model.Enumerations;
+import org.hl7.fhir.dstu3.model.Enumerations.DocumentReferenceStatus;
 import org.hl7.fhir.dstu3.model.EpisodeOfCare;
 import org.hl7.fhir.dstu3.model.Extension;
 import org.hl7.fhir.dstu3.model.FamilyMemberHistory;
@@ -88,6 +95,10 @@ import org.hl7.fhir.dstu3.model.PractitionerRole;
 import org.hl7.fhir.dstu3.model.Procedure;
 import org.hl7.fhir.dstu3.model.Procedure.ProcedurePerformerComponent;
 import org.hl7.fhir.dstu3.model.Procedure.ProcedureStatus;
+import org.hl7.fhir.dstu3.model.Provenance;
+import org.hl7.fhir.dstu3.model.Provenance.ProvenanceAgentComponent;
+import org.hl7.fhir.dstu3.model.Provenance.ProvenanceEntityComponent;
+import org.hl7.fhir.dstu3.model.Provenance.ProvenanceEntityRole;
 import org.hl7.fhir.dstu3.model.Reference;
 import org.hl7.fhir.dstu3.model.Substance;
 import org.hl7.fhir.dstu3.model.Timing;
@@ -139,6 +150,7 @@ import org.openhealthtools.mdht.uml.cda.consol.ResultOrganizer;
 import org.openhealthtools.mdht.uml.cda.consol.ServiceDeliveryLocation;
 import org.openhealthtools.mdht.uml.cda.consol.SeverityObservation;
 import org.openhealthtools.mdht.uml.cda.consol.VitalSignObservation;
+import org.openhealthtools.mdht.uml.cda.util.CDAUtil;
 import org.openhealthtools.mdht.uml.hl7.datatypes.AD;
 import org.openhealthtools.mdht.uml.hl7.datatypes.ANY;
 import org.openhealthtools.mdht.uml.hl7.datatypes.CD;
@@ -4404,6 +4416,190 @@ public class ResourceTransformerImpl implements IResourceTransformer, Serializab
     }
 
     return fhirObservationBundle;
+  }
+
+  /**
+   * Creates a Provenance Record for a FHIR Bundle.
+   * @param fhirBundle Fhir Bundle
+   * @return FHIR Provenance Resource.
+   */
+  public Provenance transformBundle2Provenance(Bundle fhirBundle) {
+    
+    if (fhirBundle == null || fhirBundle.getEntry().isEmpty()) {
+      return null;
+    }
+
+    Provenance provenance = new Provenance();
+    // Add the Targets
+    for (BundleEntryComponent entry : fhirBundle.getEntry()) {
+
+      //Assuming any Document References we created in the Bundle are the CDA Document.
+      if (entry.getResource() instanceof DocumentReference) {
+        ProvenanceEntityComponent component = new ProvenanceEntityComponent();
+        component.setRole(ProvenanceEntityRole.SOURCE);
+        component.setWhat(new Reference(entry.getFullUrl()));
+        provenance.addEntity(component);
+      } else {
+        provenance.addTarget(new Reference(entry.getFullUrl()));
+      }
+    }
+    
+    //Add the Patient as the On Behalf of.
+    ProvenanceAgentComponent agent = new ProvenanceAgentComponent();
+    agent.setOnBehalfOf(getPatientRef());
+
+
+    // Set the Activity
+    // Since we are Transforming the CDA to FHIR Objects
+    // We are setting that these were derived.
+    provenance.setActivity(
+        new Coding(
+          "http://hl7.org/fhir/w3c-provenance-activity-type", 
+          "Derivation", 
+          "wasDerivedFrom"));
+    
+    // Set the Purpose as Health system Admin
+    provenance.addReason(new Coding(
+          "http://hl7.org/fhir/v3/ActReason",
+          "HSYSADMIN",
+          "health system administration"));
+
+    // Add the recorded
+    provenance.setRecorded(new Date());
+
+    return provenance;
+  }
+
+  /**
+   * Transforms a Raw CDA Document into a FHIR Document Reference Object.
+   * @param cda CDA File to transform.
+   * @return FHIR Document Reference.
+   */
+  public Bundle transformCda2DocumentReference(ClinicalDocument cda) {
+
+    if (cda == null) {
+      return null;
+    }
+
+    ByteArrayOutputStream output = new ByteArrayOutputStream();
+    //Save the CDA to the Stream
+    try {
+      CDAUtil.save(cda, output);
+    } catch (Exception ex) {
+      logger.error("Unable to save CDA Document to Document Reference: " + ex.getMessage());
+      return null;
+    }
+
+    Bundle bundle = new Bundle();
+
+    if (output != null && output.size() > 0) {
+      DocumentReference ref = new DocumentReference();
+
+      // Add the identifier
+      if (cda.getId() != null && !cda.getId().isSetNullFlavor()) {
+        Identifier id = dtt.transformII2Identifier(cda.getId());
+        ref.setMasterIdentifier(id);      
+      }
+
+      // Set the Id
+      IdType idType = new IdType("DocumentReference", "urn:guid:" + guidFactory.addKey(ref));
+      ref.setId(idType);
+      
+      // Add the patient 
+      ref.setSubject(getPatientRef());
+
+      if (cda.getAuthors() != null) {
+        for (Author author : cda.getAuthors()) {
+          Bundle practBundle = transformAuthor2Practitioner(author);
+          if (practBundle != null) {
+            for (BundleEntryComponent entry : practBundle.getEntry()) {
+              if (entry.getResource() instanceof Practitioner) {
+                ref.addAuthor(new Reference(entry.getFullUrl()));
+                if (!extistsInBundle(bundle, entry.getFullUrl())) {
+                  bundle.addEntry(new BundleEntryComponent()
+                      .setResource(entry.getResource())
+                      .setFullUrl(entry.getFullUrl()));
+                }
+              }
+            }
+          }                
+        }
+      }
+      // Set the Status 
+      ref.setStatus(DocumentReferenceStatus.CURRENT);
+      
+      // Add the Type
+      if (cda.getCode() != null && !cda.getCode().isSetNullFlavor()) {
+        ref.setType(dtt.transformCE2CodeableConcept(cda.getCode()));
+      }
+
+      //Add the Custodian
+      if (cda.getCustodian() != null && !cda.getCustodian().isSetNullFlavor()) {
+        Organization org = transformCustodianOrganization2Organization(
+              cda.getCustodian()
+                .getAssignedCustodian()
+                .getRepresentedCustodianOrganization());
+        if (org.getIdentifier() != null) {
+          ref.setCustodian(new Reference(org.getId()));
+          if (!extistsInBundle(bundle, org.getId())) {
+            bundle.addEntry(new BundleEntryComponent()
+                .setResource(org)
+                .setFullUrl(org.getId()));
+          }
+        }
+      }
+
+      //Set the Description
+      if (cda.getTitle() != null && !cda.getTitle().isSetNullFlavor()) {
+        ref.setDescription(cda.getTitle().getText());
+      }
+
+      //set the Security Context
+      if (cda.getConfidentialityCode() != null && !cda.getConfidentialityCode().isSetNullFlavor()) {
+        ref.addSecurityLabel(dtt.transformCE2CodeableConcept(cda.getConfidentialityCode()));
+      }
+      
+      //Set the Creation Date
+      if (cda.getEffectiveTime() != null && !cda.getEffectiveTime().isSetNullFlavor()) {
+        ref.setCreatedElement(dtt.transformTS2DateTime(cda.getEffectiveTime()));
+      }
+      
+      //Set the Indexed to now.
+      ref.setIndexed(new Date());
+
+      //Add the Content
+      Attachment attachment = new Attachment();
+      attachment.setContentType("application/hl7-v3+xml");
+      attachment.setData(output.toByteArray());
+      if (cda.getLanguageCode() != null && !cda.getLanguageCode().isSetNullFlavor()) {
+        attachment.setLanguage(cda.getLanguageCode().getCode());
+      }
+      attachment.setCreation(new Date());
+      attachment.setSize(output.size());
+      if (cda.getTitle() != null && !cda.getTitle().isSetNullFlavor()) {
+        attachment.setTitle(cda.getTitle().getText());
+      }
+
+      DocumentReferenceContentComponent component = new DocumentReferenceContentComponent();
+      component.setAttachment(attachment);
+      component.setFormat(
+            new Coding(
+              "urn:oid:1.3.6.1.4.1.19376.1.2.3",
+              "urn:ihe:pcc:xphr:2007", 
+              "HL7 CCD Document"));
+
+      ref.addContent(component);
+      if (!extistsInBundle(bundle, ref.getId())) {
+        bundle.addEntry(new BundleEntryComponent()
+            .setResource(ref)
+            .setFullUrl(ref.getId()));
+      }
+    }
+    
+    
+
+
+    return bundle;
   }
 
   /**

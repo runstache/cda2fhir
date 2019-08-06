@@ -300,6 +300,11 @@ public class DataTypesTransformerImpl implements IDataTypesTransformer, Serializ
       return null;
     }
 
+    //Add the Original Text to the Codeable Concept.
+    if (cd.getOriginalText() != null && !cd.getOriginalText().isSetNullFlavor()) {
+      myCodeableConcept.setText(cd.getOriginalText().getText());
+    }
+
     // translation
     if (cd.getTranslations() != null && !cd.getTranslations().isEmpty()) {
       for (CD myCd : cd.getTranslations()) {
@@ -368,6 +373,11 @@ public class DataTypesTransformerImpl implements IDataTypesTransformer, Serializ
     }
     
     CodeableConcept myCodeableConcept = new CodeableConcept();
+
+    // Add the Original Text to the Codeable concept.
+    if (cd.getOriginalText() != null && !cd.getOriginalText().isSetNullFlavor()) {
+      myCodeableConcept.setText(cd.getOriginalText().getText());
+    }
 
     // .
     Coding coding = new Coding();
