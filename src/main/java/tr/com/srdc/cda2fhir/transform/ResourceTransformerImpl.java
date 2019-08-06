@@ -527,10 +527,7 @@ public class ResourceTransformerImpl implements IResourceTransformer, Serializab
       return null;
     }
       
-
     Practitioner fhirPractitioner = new Practitioner();
-
-
 
     // meta.profile
     if (Config.isGenerateDafProfileMetadata()) {
@@ -544,6 +541,11 @@ public class ResourceTransformerImpl implements IResourceTransformer, Serializab
           fhirPractitioner.addIdentifier(dtt.transformII2Identifier(ii));
         }
       }
+    } 
+
+    //If we can't establish an Identifier, do not include
+    if (fhirPractitioner.getIdentifier() == null || fhirPractitioner.getIdentifier().isEmpty()) {
+      return null;
     }
 
     //Set the Id
@@ -595,24 +597,35 @@ public class ResourceTransformerImpl implements IResourceTransformer, Serializab
     String idValue = fhirPractitioner.getIdentifierFirstRep().getValue();
 
     // code -> practitionerRole.role
-    if (cdaAssignedAuthor.getCode() != null && !cdaAssignedAuthor.isSetNullFlavor()) {
-      fhirPractitionerRole.addCode(dtt.transformCD2CodeableConcept(cdaAssignedAuthor.getCode()));
-      idValue += "-" + cdaAssignedAuthor.getCode().getCode();
-    }
+    if (cdaAssignedAuthor.getCode() != null) {
+      if (!cdaAssignedAuthor.getCode().isSetNullFlavor()) {
+        fhirPractitionerRole.addCode(dtt.transformCD2CodeableConcept(cdaAssignedAuthor.getCode()));
+        idValue += "-" + cdaAssignedAuthor.getCode().getCode();
+      } else {
+        if (cdaAssignedAuthor.getCode().getOriginalText() != null) {
+          fhirPractitionerRole.addCode(
+              new CodeableConcept()
+                .setText(cdaAssignedAuthor.getCode().getOriginalText().getText()));
+          idValue += "-" + cdaAssignedAuthor.getCode().getOriginalText().getText();
+        }
+      }
+    } 
 
     // representedOrganization -> practitionerRole.managingOrganization
     if (cdaAssignedAuthor.getRepresentedOrganization() != null
         && !cdaAssignedAuthor.getRepresentedOrganization().isSetNullFlavor()) {
       Organization fhirOrganization = 
           transformOrganization2Organization(
-              cdaAssignedAuthor.getRepresentedOrganization());                  
-      fhirPractitionerRole.setOrganization(new Reference(fhirOrganization.getId()));
-      idValue += "-" + fhirOrganization.getIdentifierFirstRep().getValue();
+              cdaAssignedAuthor.getRepresentedOrganization());   
+      if (fhirOrganization.getIdentifier() != null) {               
+        fhirPractitionerRole.setOrganization(new Reference(fhirOrganization.getId()));
+        idValue += "-" + fhirOrganization.getIdentifierFirstRep().getValue();
 
-      if (!extistsInBundle(fhirPractitionerBundle, fhirOrganization.getId())) {      
-        fhirPractitionerBundle.addEntry(new BundleEntryComponent()
-            .setResource(fhirOrganization)
-            .setFullUrl(fhirOrganization.getId()));
+        if (!extistsInBundle(fhirPractitionerBundle, fhirOrganization.getId())) {      
+          fhirPractitionerBundle.addEntry(new BundleEntryComponent()
+              .setResource(fhirOrganization)
+              .setFullUrl(fhirOrganization.getId()));
+        }
       }
     }
     
@@ -632,7 +645,8 @@ public class ResourceTransformerImpl implements IResourceTransformer, Serializab
     fhirPractitionerRole.setPractitioner(new Reference(fhirPractitioner.getId()));
     //Add the Practitioner Role to the Bundle.
     if (fhirPractitionerRole.getPractitioner() != null 
-            && fhirPractitionerRole.getCode() != null
+            && !fhirPractitionerRole.getCode().isEmpty()
+            && !fhirPractitionerRole.getOrganization().isEmpty()
             && !extistsInBundle(fhirPractitionerBundle, fhirPractitionerRole.getId())) {
       fhirPractitionerBundle.addEntry(
           new BundleEntryComponent()
@@ -653,8 +667,6 @@ public class ResourceTransformerImpl implements IResourceTransformer, Serializab
 
     Practitioner fhirPractitioner = new Practitioner();
 
-
-
     // meta.profile
     if (Config.isGenerateDafProfileMetadata()) {
       fhirPractitioner.getMeta().addProfile(Constants.PROFILE_DAF_PRACTITIONER);
@@ -667,6 +679,9 @@ public class ResourceTransformerImpl implements IResourceTransformer, Serializab
           fhirPractitioner.addIdentifier(dtt.transformII2Identifier(id));
         }
       }
+    }
+    if (fhirPractitioner.getIdentifier() == null || fhirPractitioner.getIdentifier().isEmpty()) {
+      return null;
     }
     
     // resource id
@@ -714,11 +729,19 @@ public class ResourceTransformerImpl implements IResourceTransformer, Serializab
     PractitionerRole fhirPractitionerRole = new PractitionerRole();
     String idValue = fhirPractitioner.getIdentifierFirstRep().getValue();
     // code -> practitionerRole.role
-    if (cdaAssignedEntity.getCode() != null && !cdaAssignedEntity.isSetNullFlavor()) {
-      fhirPractitionerRole.addCode(dtt.transformCD2CodeableConcept(cdaAssignedEntity.getCode()));
-      idValue += "-" + fhirPractitionerRole.getCodeFirstRep().getCodingFirstRep().getCode();
+    if (cdaAssignedEntity.getCode() != null) {
+      if (!cdaAssignedEntity.getCode().isSetNullFlavor()) {
+        fhirPractitionerRole.addCode(dtt.transformCD2CodeableConcept(cdaAssignedEntity.getCode()));
+        idValue += "-" + fhirPractitionerRole.getCodeFirstRep().getCodingFirstRep().getCode();
+      } else {
+        if (cdaAssignedEntity.getCode().getOriginalText() != null) {
+          fhirPractitionerRole.addCode(
+                new CodeableConcept()
+                  .setText(cdaAssignedEntity.getCode().getOriginalText().getText()));
+          idValue += "-" + fhirPractitionerRole.getCodeFirstRep().getText();
+        }
+      }     
     }
-
     // representedOrganization -> practitionerRole.organization
     // NOTE: we skipped multiple instances of representated organization; we just
     // omit apart from the first
@@ -728,33 +751,34 @@ public class ResourceTransformerImpl implements IResourceTransformer, Serializab
           && !cdaAssignedEntity.getRepresentedOrganizations().get(0).isSetNullFlavor()) {
         Organization fhirOrganization = transformOrganization2Organization(
             cdaAssignedEntity.getRepresentedOrganizations().get(0));
-        fhirPractitionerRole.setOrganization(new Reference(fhirOrganization.getId()));
+        if (fhirOrganization.getIdentifier() != null) {          
+          fhirPractitionerRole.setOrganization(new Reference(fhirOrganization.getId()));
             
-        if (!extistsInBundle(fhirPractitionerBundle, fhirOrganization.getId())) {      
-          fhirPractitionerBundle.addEntry(new BundleEntryComponent()
-              .setResource(fhirOrganization)
-              .setFullUrl(fhirOrganization.getId()));
-        }    
-        idValue += "-" + fhirOrganization.getIdentifierFirstRep().getValue();        
+          if (!extistsInBundle(fhirPractitionerBundle, fhirOrganization.getId())) {      
+            fhirPractitionerBundle.addEntry(new BundleEntryComponent()
+                .setResource(fhirOrganization)
+                .setFullUrl(fhirOrganization.getId()));
+          }    
+          idValue += "-" + fhirOrganization.getIdentifierFirstRep().getValue();        
+        }
       }
     }
     
-
-
     fhirPractitionerRole.setPractitioner(new Reference(fhirPractitioner.getId()));
-    if (fhirPractitionerRole.getCode() != null 
-        && fhirPractitionerRole.getPractitioner() != null) {
+    if (!fhirPractitionerRole.getCode().isEmpty() 
+        && !fhirPractitionerRole.getPractitioner().isEmpty()
+        && !fhirPractitionerRole.getOrganization().isEmpty()) {
 
       Identifier id = new Identifier();
       id.setSystem("urn:oid:" 
           + Constants.PRACTITIONER_ROLE_IDENTIFIER_SYSYETM);
       id.setValue(idValue);
-
+      fhirPractitionerRole.addIdentifier(id);
       IdType practId = new IdType(
             "PractitionerRole", 
             "urn:uuid:" + guidFactory.addKey(fhirPractitionerRole).toString());
       fhirPractitionerRole.setId(practId);
-      fhirPractitionerRole.addIdentifier(id);
+
 
       if (!extistsInBundle(fhirPractitionerBundle, fhirPractitionerRole.getId())) {
         fhirPractitionerBundle.addEntry(
@@ -1574,19 +1598,23 @@ public class ResourceTransformerImpl implements IResourceTransformer, Serializab
         }
 
       } else {
-        EncounterParticipant participant = encounter.getEncounterParticipants().get(0);
-        if (participant.getAssignedEntity() != null 
-            && !participant.getAssignedEntity().isSetNullFlavor()) {
-          Bundle pracBundle = transformAssignedEntity2Practitioner(participant.getAssignedEntity());
-          for (BundleEntryComponent entry : pracBundle.getEntry()) {
-            if (entry.getResource() instanceof Practitioner) {
-              //Add the reference to the EOC
-              eoc.setCareManager(new Reference(entry.getFullUrl()));
-            }
-            if (!extistsInBundle(bundle, entry.getFullUrl())) {
-              bundle.addEntry(new BundleEntryComponent()
-                  .setResource(entry.getResource())
-                  .setFullUrl(entry.getFullUrl()));
+        if (encounter.getEncounterParticipants() != null 
+            && !encounter.getEncounterParticipants().isEmpty()) {
+          EncounterParticipant participant = encounter.getEncounterParticipants().get(0);
+          if (participant.getAssignedEntity() != null 
+              && !participant.getAssignedEntity().isSetNullFlavor()) {
+            Bundle pracBundle = 
+                transformAssignedEntity2Practitioner(participant.getAssignedEntity());
+            for (BundleEntryComponent entry : pracBundle.getEntry()) {
+              if (entry.getResource() instanceof Practitioner) {
+                //Add the reference to the EOC
+                eoc.setCareManager(new Reference(entry.getFullUrl()));
+              }
+              if (!extistsInBundle(bundle, entry.getFullUrl())) {
+                bundle.addEntry(new BundleEntryComponent()
+                    .setResource(entry.getResource())
+                    .setFullUrl(entry.getFullUrl()));
+              }
             }
           }
         }
@@ -2783,17 +2811,19 @@ public class ResourceTransformerImpl implements IResourceTransformer, Serializab
       if (!cdaMedicationActivity.getAuthors().get(0).isSetNullFlavor()) {
         Bundle practBundle = 
             transformAuthor2Practitioner(cdaMedicationActivity.getAuthors().get(0));
-        for (BundleEntryComponent entry : practBundle.getEntry()) {
-          // Add all the resources returned from the bundle to the main bundle
-          if (!extistsInBundle(medStatementBundle, entry.getFullUrl())) {
-            medStatementBundle.addEntry(new BundleEntryComponent()
-                .setResource(entry.getResource())
-                .setFullUrl(entry.getFullUrl()));
-          }
-          // Add a reference to informationSource attribute only for Practitioner
-          // resource. Further resources can include Organization.
-          if (entry.getResource() instanceof Practitioner) {
-            fhirMedSt.setInformationSource(new Reference(entry.getResource().getId()));
+        if (practBundle != null) {
+          for (BundleEntryComponent entry : practBundle.getEntry()) {
+            // Add all the resources returned from the bundle to the main bundle
+            if (!extistsInBundle(medStatementBundle, entry.getFullUrl())) {
+              medStatementBundle.addEntry(new BundleEntryComponent()
+                  .setResource(entry.getResource())
+                  .setFullUrl(entry.getFullUrl()));
+            }
+            // Add a reference to informationSource attribute only for Practitioner
+            // resource. Further resources can include Organization.
+            if (entry.getResource() instanceof Practitioner) {
+              fhirMedSt.setInformationSource(new Reference(entry.getResource().getId()));
+            }
           }
         }
       }

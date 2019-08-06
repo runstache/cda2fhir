@@ -31,7 +31,6 @@ import org.hl7.fhir.dstu3.model.Bundle;
 import org.hl7.fhir.dstu3.model.Resource;
 import org.junit.BeforeClass;
 import org.junit.Test;
-import org.openhealthtools.mdht.uml.cda.ClinicalDocument;
 
 import org.openhealthtools.mdht.uml.cda.consol.ConsolPackage;
 import org.openhealthtools.mdht.uml.cda.consol.ContinuityOfCareDocument;
@@ -64,8 +63,10 @@ public class CcdTransformerTest {
     FileInputStream fis = 
         new FileInputStream("src/test/resources/170.315_b1_toc_gold_sample2_v1.xml");
 
-    ClinicalDocument cda = CDAUtil.load(fis);
-    ICdaTransformer ccdTransformer = new CcdTransformerImpl(IdGeneratorEnum.COUNTER);
+    ContinuityOfCareDocument cda = 
+        (ContinuityOfCareDocument)CDAUtil.loadAs(fis, 
+          ConsolPackage.eINSTANCE.getContinuityOfCareDocument());
+    ICdaTransformer ccdTransformer = new CcdTransformerImpl(IdGeneratorEnum.UUID);
     Config.setGenerateDafProfileMetadata(true);
     Config.setGenerateNarrative(true);
     Bundle bundle = ccdTransformer.transformDocument(cda);
@@ -83,7 +84,7 @@ public class CcdTransformerTest {
         (ContinuityOfCareDocument)CDAUtil.loadAs(fis, 
             ConsolPackage.eINSTANCE.getContinuityOfCareDocument());
     //ClinicalDocument cda = CDAUtil.load(fis);
-    ICdaTransformer ccdTransformer = new CcdTransformerImpl(IdGeneratorEnum.COUNTER);
+    ICdaTransformer ccdTransformer = new CcdTransformerImpl(IdGeneratorEnum.UUID);
     Config.setGenerateDafProfileMetadata(true);
     Config.setGenerateNarrative(true);
     Bundle bundle = ccdTransformer.transformDocument(cda);
@@ -101,7 +102,7 @@ public class CcdTransformerTest {
     ContinuityOfCareDocument cda = 
         (ContinuityOfCareDocument)CDAUtil.loadAs(fis, 
           ConsolPackage.eINSTANCE.getContinuityOfCareDocument());
-    ICdaTransformer ccdTransformer = new CcdTransformerImpl(IdGeneratorEnum.COUNTER);
+    ICdaTransformer ccdTransformer = new CcdTransformerImpl(IdGeneratorEnum.UUID);
     Config.setGenerateDafProfileMetadata(true);
     Config.setGenerateNarrative(true);
     Bundle bundle = ccdTransformer.transformDocument(cda);
@@ -118,7 +119,7 @@ public class CcdTransformerTest {
     ContinuityOfCareDocument cda = 
         (ContinuityOfCareDocument)CDAUtil.loadAs(fis, 
           ConsolPackage.eINSTANCE.getContinuityOfCareDocument());
-    ICdaTransformer ccdTransformer = new CcdTransformerImpl(IdGeneratorEnum.COUNTER);
+    ICdaTransformer ccdTransformer = new CcdTransformerImpl(IdGeneratorEnum.UUID);
     Config.setGenerateDafProfileMetadata(false);
     Config.setGenerateNarrative(true);
     Bundle bundle = ccdTransformer.transformDocument(cda);
@@ -136,7 +137,7 @@ public class CcdTransformerTest {
     ContinuityOfCareDocument cda = 
         (ContinuityOfCareDocument)CDAUtil.loadAs(fis, 
           ConsolPackage.eINSTANCE.getContinuityOfCareDocument());
-    ICdaTransformer ccdTransformer = new CcdTransformerImpl(IdGeneratorEnum.COUNTER);
+    ICdaTransformer ccdTransformer = new CcdTransformerImpl(IdGeneratorEnum.UUID);
     Config.setGenerateDafProfileMetadata(false);
     Config.setGenerateNarrative(false);
     Bundle bundle = ccdTransformer.transformDocument(cda);
@@ -153,7 +154,7 @@ public class CcdTransformerTest {
     ContinuityOfCareDocument cda = 
         (ContinuityOfCareDocument)CDAUtil.loadAs(fis, 
           ConsolPackage.eINSTANCE.getContinuityOfCareDocument());
-    ICdaTransformer ccdTransformer = new CcdTransformerImpl(IdGeneratorEnum.COUNTER);
+    ICdaTransformer ccdTransformer = new CcdTransformerImpl(IdGeneratorEnum.UUID);
     Config.setGenerateDafProfileMetadata(true);
     Config.setGenerateNarrative(true);
     Bundle bundle = ccdTransformer.transformDocument(cda);

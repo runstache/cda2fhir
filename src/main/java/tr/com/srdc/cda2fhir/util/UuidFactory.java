@@ -10,6 +10,7 @@ import org.hl7.fhir.dstu3.model.Identifier;
 import org.hl7.fhir.dstu3.model.Medication;
 import org.hl7.fhir.dstu3.model.Organization;
 import org.hl7.fhir.dstu3.model.Resource;
+import org.hl7.fhir.dstu3.model.Substance;
 
 
 
@@ -83,6 +84,15 @@ public class UuidFactory {
           Organization org = (Organization)resource;
           if (org.getName() != null) {
             return addKey(org.getClass().getName() + "|" + org.getName());
+          }
+        }
+
+        if (resource instanceof Substance) {
+          Substance substance = (Substance)resource;
+          if (substance.getCode() != null) {
+            return addKey(substance.getClass().getName() 
+                + "|" 
+                + substance.getCode().getCodingFirstRep().getCode());
           }
         }
 
