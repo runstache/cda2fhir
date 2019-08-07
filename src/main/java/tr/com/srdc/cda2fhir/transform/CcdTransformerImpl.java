@@ -446,6 +446,20 @@ public class CcdTransformerImpl implements ICdaTransformer, Serializable {
           .setFullUrl(prov.getId()));
     }
 
+    //Link the Encounters to the Episode of Care if there is one.
+    if (ccdBundle.getEntry().stream().anyMatch(c -> c.getResource() instanceof EpisodeOfCare)) {
+      ccdBundle.getEntry()
+          .stream()
+          .filter(c -> c.getResource() instanceof EpisodeOfCare).forEach(eoc -> {          
+            for (BundleEntryComponent entry : ccdBundle.getEntry()) {
+              if (entry.getResource() instanceof Encounter) {
+                Encounter encounter = (Encounter)entry.getResource();
+                encounter.addEpisodeOfCare(new Reference(eoc.getFullUrl()));
+              }
+            }
+          });
+    }
+
     return ccdBundle;
   }
 
