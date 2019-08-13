@@ -169,14 +169,6 @@ public interface IDataTypesTransformer {
   HumanName transformEN2HumanName(EN en);
 
   /**
-   * Tranforms a CDA EN Instance to a FHIR Human Name utilizing a Concept Map for Name Use.
-   * @param en CDA EN Entity
-   * @param map Concept Map to apply 
-   * @return Human Name
-   */
-  HumanName transformEN2HumanName(EN en, ConceptMap map);
-
-  /**
    * Transforms a CDA PN Instance to a FHIR Human Name Composite Data Type.
    * @param pn CDA PN Entity.
    * @return FHIR Human Name.
@@ -191,14 +183,6 @@ public interface IDataTypesTransformer {
    * @return A IdentifierDt composite datatype instance
    */
   Identifier transformII2Identifier(II ii);
-
-  /**
-   * Transforms a CDA II Entity to an Identifier utilizing Concept Maps for System, Type, and Use.
-   * @param ii CDA II Entity
-   * @param maps Concept Maps to apply.
-   * @return Identifier
-   */
-  Identifier transformII2Identifier(II ii, List<ConceptMap> maps);
 
   /**
    * Transforms a CDA INT instance to a FHIR IntegerDt primitive datatype

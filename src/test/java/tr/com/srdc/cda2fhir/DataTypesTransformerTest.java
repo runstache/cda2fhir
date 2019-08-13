@@ -308,7 +308,8 @@ public class DataTypesTransformerTest {
     // instance test: there exists an instance of ED but no setter is called
     ED ed4 = DatatypesFactory.eINSTANCE.createED();
     Attachment attachment4 = dtt.transformED2Attachment(ed4);
-    Assert.assertNull("ED.mediaType was not transformed", attachment4.getContentType());
+    //Check that the default media type is test/plain
+    Assert.assertEquals("text/plain", attachment4.getContentType());
     Assert.assertNull("ED.language was not transformed", attachment4.getLanguage());
     Assert.assertNull("ED.data was not transformed", attachment4.getData());
     Assert.assertNull("ED.reference.literal was not transformed", attachment4.getUrl());
