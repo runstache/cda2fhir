@@ -22,6 +22,7 @@ package tr.com.srdc.cda2fhir.transform;
 import java.io.Serializable;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
+import java.util.List;
 import java.util.Optional;
 
 import org.hl7.fhir.dstu3.model.Address.AddressType;
@@ -69,22 +70,51 @@ public class ValueSetsTransformerImpl implements IValueSetsTransformer, Serializ
 
   public static final long serialVersionUID = 1L;
   private static final Logger logger = LoggerFactory.getLogger(ValueSetsTransformerImpl.class);
+  private List<ConceptMap> maps;
+
+  public ValueSetsTransformerImpl() {
+    maps = null;
+  }
+
+  public ValueSetsTransformerImpl(List<ConceptMap> maps) {
+    this();
+    this.maps = maps;
+  }
 
   /**
    * Transforms a CDA Administrative Gender to a FHIR Administrative Gender.
    */
   public Enumerations.AdministrativeGender transformAdministrativeGenderCode2AdministrativeGender(
       String cdaAdministrativeGenderCode) {
-    switch (cdaAdministrativeGenderCode.toLowerCase()) {
-      case "f":
-        return Enumerations.AdministrativeGender.FEMALE;
-      case "m":
-        return Enumerations.AdministrativeGender.MALE;
-      case "un":
-        return Enumerations.AdministrativeGender.UNKNOWN;
-      default:
-        return Enumerations.AdministrativeGender.UNKNOWN;
 
+    if (maps != null 
+        && maps.stream()
+          .anyMatch(c -> c.getIdentifier().getValue()
+              .toLowerCase().contains("AdministrativeGender"))) {
+      Optional<ConceptMap> map = 
+          maps.stream()
+              .filter(c -> c.getIdentifier().getValue().contains("AdministrativeGender"))
+              .findFirst();
+      if (map.isPresent()) {    
+        return transformCdaValueToFhirCodeValue(
+              cdaAdministrativeGenderCode, 
+              map.get(), 
+              Enumerations.AdministrativeGender.class);
+      } else {
+        return Enumerations.AdministrativeGender.UNKNOWN;
+      }
+    } else {
+      switch (cdaAdministrativeGenderCode.toLowerCase()) {
+        case "f":
+          return Enumerations.AdministrativeGender.FEMALE;
+        case "m":
+          return Enumerations.AdministrativeGender.MALE;
+        case "un":
+          return Enumerations.AdministrativeGender.UNKNOWN;
+        default:
+          return Enumerations.AdministrativeGender.UNKNOWN;
+
+      }
     }
   }
 
@@ -98,6 +128,7 @@ public class ValueSetsTransformerImpl implements IValueSetsTransformer, Serializ
    */
   public <T> T transformCdaValueToFhirCodeValue(
         final String cdaCodeValue, ConceptMap map, Class<T> clazz) {
+        
     if (clazz.getSimpleName().equalsIgnoreCase("coding")) {
       //Create a Coding Element based on the Concept Map  
       Coding coding = new Coding();
@@ -204,8 +235,7 @@ public class ValueSetsTransformerImpl implements IValueSetsTransformer, Serializ
   public String transformAgeObservationUnit2AgeUnit(String cdaAgeObservationUnit) {
     if (cdaAgeObservationUnit == null || cdaAgeObservationUnit.isEmpty()) {
       return null;
-    }
-
+    }    
     switch (cdaAgeObservationUnit.toLowerCase()) {
       case "a":
         return "Year";
@@ -232,22 +262,31 @@ public class ValueSetsTransformerImpl implements IValueSetsTransformer, Serializ
     if (cdaAllergyCategoryCode == null) {
       return null;
     }
-    switch (cdaAllergyCategoryCode) {
-      case "416098002":
-      case "59037007":
-      case "419511003":
-        return AllergyIntoleranceCategory.MEDICATION;
-      case "414285001":
-      case "235719002":
-      case "418471000":
-        return AllergyIntoleranceCategory.FOOD;
-      case "232347008":
-        return AllergyIntoleranceCategory.ENVIRONMENT;
-      case "420134006":
-      case "418038007":
-      case "419199007":
-      default:
-        return null;
+
+    if (getMap("allergyintollerance.category") != null) {
+      return transformCdaValueToFhirCodeValue(
+          cdaAllergyCategoryCode, 
+          getMap("allergyintollerance.category"), 
+          AllergyIntoleranceCategory.class);
+      
+    } else {
+      switch (cdaAllergyCategoryCode) {
+        case "416098002":
+        case "59037007":
+        case "419511003":
+          return AllergyIntoleranceCategory.MEDICATION;
+        case "414285001":
+        case "235719002":
+        case "418471000":
+          return AllergyIntoleranceCategory.FOOD;
+        case "232347008":
+          return AllergyIntoleranceCategory.ENVIRONMENT;
+        case "420134006":
+        case "418038007":
+        case "419199007":
+        default:
+          return null;
+      }
     }
   }
 
@@ -261,16 +300,24 @@ public class ValueSetsTransformerImpl implements IValueSetsTransformer, Serializ
       String cdaCriticalityObservationValue) {
     if (cdaCriticalityObservationValue == null || cdaCriticalityObservationValue.isEmpty()) {
       return null;
-    }      
-    switch (cdaCriticalityObservationValue.toLowerCase()) {
-      case "critl":
-        return AllergyIntoleranceCriticality.LOW;
-      case "crith":
-        return AllergyIntoleranceCriticality.HIGH;
-      case "critu":
-        return AllergyIntoleranceCriticality.UNABLETOASSESS;
-      default:
-        return null;
+    }
+
+    if (getMap("allergyintolerance.criticality") != null) {
+      return transformCdaValueToFhirCodeValue(
+            cdaCriticalityObservationValue, 
+            getMap("allergyintolerance.criticality"), 
+            AllergyIntoleranceCriticality.class);
+    } else {      
+      switch (cdaCriticalityObservationValue.toLowerCase()) {
+        case "critl":
+          return AllergyIntoleranceCriticality.LOW;
+        case "crith":
+          return AllergyIntoleranceCriticality.HIGH;
+        case "critu":
+          return AllergyIntoleranceCriticality.UNABLETOASSESS;
+        default:
+          return null;
+      }
     }
   }
 
@@ -281,51 +328,58 @@ public class ValueSetsTransformerImpl implements IValueSetsTransformer, Serializ
     if (cdaEncounterCode == null) {
       return null;
     }
-    switch (cdaEncounterCode.toLowerCase()) {
-      case "amb":
-        return new Coding(
-              Constants.ENCOUNTER_CLASS_SYSTEM, 
-              cdaEncounterCode.toUpperCase(), "ambulatory");       
-      case "ambulatory":
-        return new Coding(
-              Constants.ENCOUNTER_CLASS_SYSTEM, "AMB", cdaEncounterCode.toLowerCase());  
-      case "out":
-        return new Coding(Constants.ENCOUNTER_CLASS_SYSTEM, "AMB", "ambulatory");  
-      case "outpatient":
-        return new Coding(Constants.ENCOUNTER_CLASS_SYSTEM, "AMB", "ambulatory");
-      case "in":
-        return new Coding(Constants.ENCOUNTER_CLASS_SYSTEM, "IMP", "inpatient encounter");
-      case "inp":
-        return new Coding(Constants.ENCOUNTER_CLASS_SYSTEM, "IMP", "inpatient encounter");
-      case "inpatient":
-        return new Coding(Constants.ENCOUNTER_CLASS_SYSTEM, "IMP", "inpatient encounter");
-      case "day":
-        return new Coding(Constants.ENCOUNTER_CLASS_SYSTEM, "SS", "short stay");
-      case "daytime":
-        return new Coding(Constants.ENCOUNTER_CLASS_SYSTEM, "SS", "short stay");
-      case "em":
-        return new Coding(Constants.ENCOUNTER_CLASS_SYSTEM, "EMER", "emergency");
-      case "eme":
-        return new Coding(Constants.ENCOUNTER_CLASS_SYSTEM, "EMER", "emergency");
-      case "emergency":
-        return new Coding(Constants.ENCOUNTER_CLASS_SYSTEM, "EMER", "emergency");
-      case "hom":
-        return new Coding(Constants.ENCOUNTER_CLASS_SYSTEM, "HH", "home health");
-      case "home":
-        return new Coding(Constants.ENCOUNTER_CLASS_SYSTEM, "HH", "home health"); 
-      case "vir":
-        return new Coding(Constants.ENCOUNTER_CLASS_SYSTEM, "VR", "virtual");
-      case "virtual":
-        return new Coding(Constants.ENCOUNTER_CLASS_SYSTEM, "VR", "virtual");
-      case "fie":
-        return new Coding(Constants.ENCOUNTER_CLASS_SYSTEM, "FLD", "field");
-      case "field":
-        return new Coding(Constants.ENCOUNTER_CLASS_SYSTEM, "FLD", "field");
-      case "other":
-      case "oth":
-      default:
-        return null;
+    if (getMap("encounter.class") != null) {
+      return transformCdaValueToFhirCodeValue(
+            cdaEncounterCode, 
+            getMap("encounter.class"), 
+            Coding.class);
+    } else {
+      switch (cdaEncounterCode.toLowerCase()) {
+        case "amb":
+          return new Coding(
+                Constants.ENCOUNTER_CLASS_SYSTEM, 
+                cdaEncounterCode.toUpperCase(), "ambulatory");       
+        case "ambulatory":
+          return new Coding(
+                Constants.ENCOUNTER_CLASS_SYSTEM, "AMB", cdaEncounterCode.toLowerCase());  
+        case "out":
+          return new Coding(Constants.ENCOUNTER_CLASS_SYSTEM, "AMB", "ambulatory");  
+        case "outpatient":
+          return new Coding(Constants.ENCOUNTER_CLASS_SYSTEM, "AMB", "ambulatory");
+        case "in":
+          return new Coding(Constants.ENCOUNTER_CLASS_SYSTEM, "IMP", "inpatient encounter");
+        case "inp":
+          return new Coding(Constants.ENCOUNTER_CLASS_SYSTEM, "IMP", "inpatient encounter");
+        case "inpatient":
+          return new Coding(Constants.ENCOUNTER_CLASS_SYSTEM, "IMP", "inpatient encounter");
+        case "day":
+          return new Coding(Constants.ENCOUNTER_CLASS_SYSTEM, "SS", "short stay");
+        case "daytime":
+          return new Coding(Constants.ENCOUNTER_CLASS_SYSTEM, "SS", "short stay");
+        case "em":
+          return new Coding(Constants.ENCOUNTER_CLASS_SYSTEM, "EMER", "emergency");
+        case "eme":
+          return new Coding(Constants.ENCOUNTER_CLASS_SYSTEM, "EMER", "emergency");
+        case "emergency":
+          return new Coding(Constants.ENCOUNTER_CLASS_SYSTEM, "EMER", "emergency");
+        case "hom":
+          return new Coding(Constants.ENCOUNTER_CLASS_SYSTEM, "HH", "home health");
+        case "home":
+          return new Coding(Constants.ENCOUNTER_CLASS_SYSTEM, "HH", "home health"); 
+        case "vir":
+          return new Coding(Constants.ENCOUNTER_CLASS_SYSTEM, "VR", "virtual");
+        case "virtual":
+          return new Coding(Constants.ENCOUNTER_CLASS_SYSTEM, "VR", "virtual");
+        case "fie":
+          return new Coding(Constants.ENCOUNTER_CLASS_SYSTEM, "FLD", "field");
+        case "field":
+          return new Coding(Constants.ENCOUNTER_CLASS_SYSTEM, "FLD", "field");
+        case "other":
+        case "oth":
+        default:
+          return null;
 
+      }
     }
   }
 
@@ -392,53 +446,59 @@ public class ValueSetsTransformerImpl implements IValueSetsTransformer, Serializ
   public CodeableConcept transformMaritalStatusCode2MaritalStatusCodes(
         String cdaMaritalStatusCode) {
 
-    
-    switch (cdaMaritalStatusCode.toUpperCase()) {
-      case "A":
-        return new CodeableConcept().addCoding(
-              new Coding(
-                Constants.MARITAL_STATUS_SYSTEM,cdaMaritalStatusCode.toUpperCase(), "Annulled"));
-      case "D":
-        return new CodeableConcept().addCoding(
-              new Coding(
-                Constants.MARITAL_STATUS_SYSTEM,cdaMaritalStatusCode.toUpperCase(), "Divorced"));
-      case "I":
-        return new CodeableConcept().addCoding(
+    if (getMap("patient.maritalstatus") != null) {
+      return transformCdaValueToFhirCodeValue(
+            cdaMaritalStatusCode, 
+            getMap("patient.maritalstatus"),
+            CodeableConcept.class);
+    } else {    
+      switch (cdaMaritalStatusCode.toUpperCase()) {
+        case "A":
+          return new CodeableConcept().addCoding(
+                new Coding(
+                  Constants.MARITAL_STATUS_SYSTEM,cdaMaritalStatusCode.toUpperCase(), "Annulled"));
+        case "D":
+          return new CodeableConcept().addCoding(
+                new Coding(
+                  Constants.MARITAL_STATUS_SYSTEM,cdaMaritalStatusCode.toUpperCase(), "Divorced"));
+        case "I":
+          return new CodeableConcept().addCoding(
+                new Coding(
+                  Constants.MARITAL_STATUS_SYSTEM,
+                  cdaMaritalStatusCode.toUpperCase(), "Interlocutory"));
+        case "L":
+          return new CodeableConcept().addCoding(
               new Coding(
                 Constants.MARITAL_STATUS_SYSTEM,
-                cdaMaritalStatusCode.toUpperCase(), "Interlocutory"));
-      case "L":
-        return new CodeableConcept().addCoding(
-            new Coding(
-              Constants.MARITAL_STATUS_SYSTEM,
-              cdaMaritalStatusCode.toUpperCase(), "Legally Seperated"));
-      case "M":
-        return new CodeableConcept().addCoding(
-            new Coding(Constants.MARITAL_STATUS_SYSTEM,
-              cdaMaritalStatusCode.toUpperCase(), "Married"));
-      case "P":
-        return new CodeableConcept().addCoding(
-            new Coding(Constants.MARITAL_STATUS_SYSTEM,
-              cdaMaritalStatusCode.toUpperCase(), "Polygamous"));
-      case "S":
-        return new CodeableConcept().addCoding(
-            new Coding(Constants.MARITAL_STATUS_SYSTEM,
-              cdaMaritalStatusCode.toUpperCase(), "Never Married"));
-      case "T":
-        return new CodeableConcept().addCoding(
-            new Coding(Constants.MARITAL_STATUS_SYSTEM,
-              cdaMaritalStatusCode.toUpperCase(), "Domestic partner"));
-      case "W":
-        return new CodeableConcept().addCoding(
-            new Coding(Constants.MARITAL_STATUS_SYSTEM,
-              cdaMaritalStatusCode.toUpperCase(), "Widowed"));
-      case "UN":
-        return new CodeableConcept().addCoding(
-            new Coding(Constants.MARITAL_STATUS_SYSTEM,
-              cdaMaritalStatusCode.toUpperCase(), "unknown"));
-      default:
-        return new CodeableConcept().addCoding(
-            new Coding(Constants.MARITAL_STATUS_SYSTEM,"UNK", "unknown"));
+                cdaMaritalStatusCode.toUpperCase(), "Legally Seperated"));
+        case "M":
+          return new CodeableConcept().addCoding(
+              new Coding(Constants.MARITAL_STATUS_SYSTEM,
+                cdaMaritalStatusCode.toUpperCase(), "Married"));
+        case "P":
+          return new CodeableConcept().addCoding(
+              new Coding(Constants.MARITAL_STATUS_SYSTEM,
+                cdaMaritalStatusCode.toUpperCase(), "Polygamous"));
+        case "S":
+          return new CodeableConcept().addCoding(
+              new Coding(Constants.MARITAL_STATUS_SYSTEM,
+                cdaMaritalStatusCode.toUpperCase(), "Never Married"));
+        case "T":
+          return new CodeableConcept().addCoding(
+              new Coding(Constants.MARITAL_STATUS_SYSTEM,
+                cdaMaritalStatusCode.toUpperCase(), "Domestic partner"));
+        case "W":
+          return new CodeableConcept().addCoding(
+              new Coding(Constants.MARITAL_STATUS_SYSTEM,
+                cdaMaritalStatusCode.toUpperCase(), "Widowed"));
+        case "UN":
+          return new CodeableConcept().addCoding(
+              new Coding(Constants.MARITAL_STATUS_SYSTEM,
+                cdaMaritalStatusCode.toUpperCase(), "unknown"));
+        default:
+          return new CodeableConcept().addCoding(
+              new Coding(Constants.MARITAL_STATUS_SYSTEM,"UNK", "unknown"));
+      }
     }
   }
 
@@ -520,66 +580,75 @@ public class ValueSetsTransformerImpl implements IValueSetsTransformer, Serializ
     if (cdaObservationInterpretationCode == null) {
       return null;
     }
-    Coding obsIntCode = new Coding();
-    obsIntCode.setSystem("http://hl7.org/fhir/v2/0078");
+    if (getMap("observation.interpretation") != null 
+        && cdaObservationInterpretationCode.getCode() != null) {
+      return transformCdaValueToFhirCodeValue(
+            cdaObservationInterpretationCode.getCode(), 
+            getMap("observation.interpretation"), 
+            CodeableConcept.class);
+    } else {
+      Coding obsIntCode = new Coding();
+      obsIntCode.setSystem("http://hl7.org/fhir/v2/0078");
 
-    String code = null;
-    String display = null;
+      String code = null;
+      String display = null;
 
-    // init code and display with the CDA incomings
-    if (cdaObservationInterpretationCode.getCode() != null) {
-      code = cdaObservationInterpretationCode.getCode();
-    }    
-    if (cdaObservationInterpretationCode.getDisplayName() != null) {
-      display = cdaObservationInterpretationCode.getDisplayName();
-    }
-    
-    // if a different code is found, change it
-    if (cdaObservationInterpretationCode.getCode() != null) {
-      switch (cdaObservationInterpretationCode.getCode().toUpperCase()) {
-        case "AC":
-          code = "IE";
-          display = "Insufficient evidence";
-          break;
-        case "EX":
-          code = "IND";
-          display = "Indeterminate";
-          break;
-        case "HX":
-          code = "H";
-          display = "High";
-          break;
-        case "LX":
-          code = "L";
-          display = "Low";
-          break;
-        case "QCF":
-          code = "IND";
-          display = "Indeterminate";
-          break;
-        case "TOX":
-          code = "IND";
-          display = "Indeterminate";
-          break;
-        case "CAR":
-          code = "DET";
-          display = "Detected";
-          break;
-        case "H>":
-          code = "HU";
-          display = "Very high";
-          break;
-        case "L<":
-          code = "LU";
-          display = "Very low";
-          break;
-        default:
-          break;
+      // init code and display with the CDA incomings
+      if (cdaObservationInterpretationCode.getCode() != null) {
+        code = cdaObservationInterpretationCode.getCode();
+      }    
+      if (cdaObservationInterpretationCode.getDisplayName() != null) {
+        display = cdaObservationInterpretationCode.getDisplayName();
       }
+    
+      // if a different code is found, change it
+      if (cdaObservationInterpretationCode.getCode() != null) {
+        switch (cdaObservationInterpretationCode.getCode().toUpperCase()) {
+          case "AC":
+            code = "IE";
+            display = "Insufficient evidence";
+            break;
+          case "EX":
+            code = "IND";
+            display = "Indeterminate";
+            break;
+          case "HX":
+            code = "H";
+            display = "High";
+            break;
+          case "LX":
+            code = "L";
+            display = "Low";
+            break;
+          case "QCF":
+            code = "IND";
+            display = "Indeterminate";
+            break;
+          case "TOX":
+            code = "IND";
+            display = "Indeterminate";
+            break;
+          case "CAR":
+            code = "DET";
+            display = "Detected";
+            break;
+          case "H>":
+            code = "HU";
+            display = "Very high";
+            break;
+          case "L<":
+            code = "LU";
+            display = "Very low";
+            break;
+          default:
+            break;
+        }
+      }
+    
+      obsIntCode.setCode(code);
+      obsIntCode.setDisplay(display);
+      return new CodeableConcept().addCoding(obsIntCode);
     }
-    obsIntCode.setCode(code);
-    obsIntCode.setDisplay(display);
-    return new CodeableConcept().addCoding(obsIntCode);
   }
 
   /**
@@ -587,40 +656,50 @@ public class ValueSetsTransformerImpl implements IValueSetsTransformer, Serializ
    */
   public ObservationStatus transformObservationStatusCode2ObservationStatus(
         String cdaObservationStatusCode) {
-    switch (cdaObservationStatusCode.toLowerCase()) {
-      // TODO: https://www.hl7.org/fhir/valueset-observation-status.html and pdf page
-      // 476
-      // Check the following mapping
-      case "new":
-        return ObservationStatus.REGISTERED;
-      case "held":
-        return ObservationStatus.REGISTERED;
-      case "normal":
-        return ObservationStatus.PRELIMINARY;
-      case "active":
-        return ObservationStatus.PRELIMINARY;
-      case "completed":
-        return ObservationStatus.FINAL;
-      case "error":
-        return ObservationStatus.ENTEREDINERROR;
-      case "cancelled":
-        return ObservationStatus.CANCELLED;
-      case "aborted":
-        return ObservationStatus.CANCELLED;
-      case "nullified":
-        return ObservationStatus.CANCELLED;
-      case "suspended":
-        return ObservationStatus.CANCELLED;
-      case "obsolete":
-      default:
-        return ObservationStatus.UNKNOWN;
+
+    if (getMap("observation.status") != null) {
+      return transformCdaValueToFhirCodeValue(
+            cdaObservationStatusCode, 
+            getMap("observation.status"), 
+            ObservationStatus.class);
+    } else {
+      switch (cdaObservationStatusCode.toLowerCase()) {
+        
+        // Verify the Mapping below or use a concept map.
+        // https://www.hl7.org/fhir/valueset-observation-status.html and pdf page
+        // 476
+        // Check the following mapping
+        case "new":
+          return ObservationStatus.REGISTERED;
+        case "held":
+          return ObservationStatus.REGISTERED;
+        case "normal":
+          return ObservationStatus.PRELIMINARY;
+        case "active":
+          return ObservationStatus.PRELIMINARY;
+        case "completed":
+          return ObservationStatus.FINAL;
+        case "error":
+          return ObservationStatus.ENTEREDINERROR;
+        case "cancelled":
+          return ObservationStatus.CANCELLED;
+        case "aborted":
+          return ObservationStatus.CANCELLED;
+        case "nullified":
+          return ObservationStatus.CANCELLED;
+        case "suspended":
+          return ObservationStatus.CANCELLED;
+        case "obsolete":
+        default:
+          return ObservationStatus.UNKNOWN;
+      }
     }
   }
 
   /**
    * Tranforms OID Value to URL.
    */
-  public String transformOid2Url(String codeSystem) {
+  public String transformOid2Url(String codeSystem) {       
     String system = null;
     switch (codeSystem) {
       case "2.16.840.1.113883.6.96":
@@ -960,13 +1039,20 @@ public class ValueSetsTransformerImpl implements IValueSetsTransformer, Serializ
    * @return FHIR Address Use.
    */
   public AddressType transformPostalAddressUse2AddressType(PostalAddressUse cdaPostalAddressUse) {
-    switch (cdaPostalAddressUse) {
-      case PHYS:
-        return AddressType.PHYSICAL;
-      case PST:
-        return AddressType.POSTAL;
-      default:
-        return null;
+    if (getMap("address.type") != null) {
+      return transformCdaValueToFhirCodeValue(
+            cdaPostalAddressUse.toString(), 
+            getMap("address.type"), 
+            AddressType.class);
+    } else {
+      switch (cdaPostalAddressUse) {
+        case PHYS:
+          return AddressType.PHYSICAL;
+        case PST:
+          return AddressType.POSTAL;
+        default:
+          return null;
+      }
     }
   }
 
@@ -976,19 +1062,27 @@ public class ValueSetsTransformerImpl implements IValueSetsTransformer, Serializ
    * @return FHIR Address Use.
    */
   public AddressUse transformPostalAdressUse2AddressUse(PostalAddressUse cdaPostalAddressUse) {
-    switch (cdaPostalAddressUse) {
-      case HP:
-        return AddressUse.HOME;
-      case H:
-        return AddressUse.HOME;
-      case WP:
-        return AddressUse.WORK;
-      case TMP:
-        return AddressUse.TEMP;
-      case BAD:
-        return AddressUse.OLD;
-      default:
-        return AddressUse.TEMP;
+    if (getMap("address.use") != null) {
+      return transformCdaValueToFhirCodeValue(
+            cdaPostalAddressUse.toString(), 
+            getMap("address.use"), 
+            AddressUse.class);
+    } else {
+
+      switch (cdaPostalAddressUse) {
+        case HP:
+          return AddressUse.HOME;
+        case H:
+          return AddressUse.HOME;
+        case WP:
+          return AddressUse.WORK;
+        case TMP:
+          return AddressUse.TEMP;
+        case BAD:
+          return AddressUse.OLD;
+        default:
+          return AddressUse.TEMP;
+      }
     }
   }
 
@@ -1003,46 +1097,54 @@ public class ValueSetsTransformerImpl implements IValueSetsTransformer, Serializ
       return null;
     }
 
-    switch (cdaProblemType) {
-      case "248536006":
-      case "373930000":
-      case "404684003":
-      case "75321-0":
-      case "75312-9":
-        return new CodeableConcept().addCoding(
+    if (getMap("condition.category") != null) {
+      return transformCdaValueToFhirCodeValue(
+            cdaProblemType, 
+            getMap("condition.category"), 
+            CodeableConcept.class);
+    } else {    
+      switch (cdaProblemType) {
+        case "248536006":
+        case "373930000":
+        case "404684003":
+        case "75321-0":
+        case "75312-9":
+          return new CodeableConcept().addCoding(
+              new Coding(
+                  Constants.CONDITION_CATEGORY_SYSTEM, 
+                      "encounter-diagnosis", "Encounter Diagnosis"));
+        case "409586006":
+        case "75322-8":
+        case "75313-7":
+          return new CodeableConcept().addCoding(
+              new Coding(
+                Constants.CONDITION_CATEGORY_SYSTEM, "problem-list-item", "Problem List Item"));
+        case "282291009":
+        case "29308-4":
+        case "75314-5":
+        case "55607006": // problem
+          return new CodeableConcept().addCoding(
+              new Coding(
+                Constants.CONDITION_CATEGORY_SYSTEM, "problem-list-item", "Problem List Item"));
+        case "75318-6":
+        case "75323-6": // condition
+          return new CodeableConcept().addCoding(
             new Coding(
-                Constants.CONDITION_CATEGORY_SYSTEM, "encounter-diagnosis", "Encounter Diagnosis"));
-      case "409586006":
-      case "75322-8":
-      case "75313-7":
-        return new CodeableConcept().addCoding(
+              Constants.CONDITION_CATEGORY_SYSTEM, "encounter-diagnosis", "Encounter Diagnosis"));
+        case "75315-2":
+        case "64572001":
+          return new CodeableConcept().addCoding(
+            new Coding(
+              Constants.CONDITION_CATEGORY_SYSTEM, "encounter-diagnosis", "Encounter Diagnosis"));
+        case "418799008":
+        case "75325-1":
+        case "75317-8":
+          return new CodeableConcept().addCoding(
             new Coding(
               Constants.CONDITION_CATEGORY_SYSTEM, "problem-list-item", "Problem List Item"));
-      case "282291009":
-      case "29308-4":
-      case "75314-5":
-      case "55607006": // problem
-        return new CodeableConcept().addCoding(
-            new Coding(
-              Constants.CONDITION_CATEGORY_SYSTEM, "problem-list-item", "Problem List Item"));
-      case "75318-6":
-      case "75323-6": // condition
-        return new CodeableConcept().addCoding(
-          new Coding(
-            Constants.CONDITION_CATEGORY_SYSTEM, "encounter-diagnosis", "Encounter Diagnosis"));
-      case "75315-2":
-      case "64572001":
-        return new CodeableConcept().addCoding(
-          new Coding(
-            Constants.CONDITION_CATEGORY_SYSTEM, "encounter-diagnosis", "Encounter Diagnosis"));
-      case "418799008":
-      case "75325-1":
-      case "75317-8":
-        return new CodeableConcept().addCoding(
-          new Coding(
-            Constants.CONDITION_CATEGORY_SYSTEM, "problem-list-item", "Problem List Item"));
-      default:
-        return null;
+        default:
+          return null;
+      }
     }
   }
 
@@ -1057,21 +1159,28 @@ public class ValueSetsTransformerImpl implements IValueSetsTransformer, Serializ
       return null;
     }
 
-    switch (cdaResultOrganizerStatusCode.toLowerCase()) {
-      case "aborted":
-        return DiagnosticReportStatus.CANCELLED;
-      case "active":
-        return DiagnosticReportStatus.PARTIAL;
-      case "cancelled":
-        return DiagnosticReportStatus.CANCELLED;
-      case "completed":
-        return DiagnosticReportStatus.FINAL;
-      case "held":
-        return DiagnosticReportStatus.REGISTERED;
-      case "suspended":
-        return DiagnosticReportStatus.ENTEREDINERROR;
-      default:
-        return null;
+    if (getMap("diagnosticreport.status") != null) {
+      return transformCdaValueToFhirCodeValue(
+            cdaResultOrganizerStatusCode, 
+            getMap("diagnosticreport.status"), 
+            DiagnosticReportStatus.class);
+    } else {    
+      switch (cdaResultOrganizerStatusCode.toLowerCase()) {
+        case "aborted":
+          return DiagnosticReportStatus.CANCELLED;
+        case "active":
+          return DiagnosticReportStatus.PARTIAL;
+        case "cancelled":
+          return DiagnosticReportStatus.CANCELLED;
+        case "completed":
+          return DiagnosticReportStatus.FINAL;
+        case "held":
+          return DiagnosticReportStatus.REGISTERED;
+        case "suspended":
+          return DiagnosticReportStatus.ENTEREDINERROR;
+        default:
+          return null;
+      }
     }
   }
 
@@ -1084,69 +1193,76 @@ public class ValueSetsTransformerImpl implements IValueSetsTransformer, Serializ
       return null;
     }
 
-    Coding fhirPatientContactRelationshipCode = new Coding();
-    fhirPatientContactRelationshipCode.setSystem(Constants.CONTACT_RELATIONSHIP_SYSTEM);
-    String code = null;
-    String display = null;
+    if (getMap("patient.contact.relationship") != null) {
+      return transformCdaValueToFhirCodeValue(
+            cdaRoleCode, 
+            getMap("patient.contact.relationship"), 
+            CodeableConcept.class);
+    } else {
+      Coding fhirPatientContactRelationshipCode = new Coding();
+      fhirPatientContactRelationshipCode.setSystem(Constants.CONTACT_RELATIONSHIP_SYSTEM);
+      String code = null;
+      String display = null;
 
-    switch (cdaRoleCode.toLowerCase()) {
-      case "econ": // emergency contact
-        code = "emergency";
-        display = "Emergency";
-        break;
-      case "ext": // extended family member
-      case "fammemb": // family member
-        code = "family";
-        display = "Family";
-        break;
-      case "guard": // guardian
-        code = "guardian";
-        display = "Guardian";
-        break;
-      case "frnd": // friend
-        code = "friend";
-        display = "Friend";
-        break;
-      case "sps": // spouse
-      case "dompart": // domestic partner
-      case "husb": // husband
-      case "wife": // wife
-        code = "partner";
-        display = "Partner";
-        break;
-      case "work":
-        code = "work";
-        display = "Work";
-        break;
-      case "gt":
-        code = "guarantor";
-        display = "Guarantor";
-        break;
-      case "prn": // parent
-      case "fth": // father
-      case "mth": // mother
-      case "nprn": // natural parent
-      case "nfth": // natural father
-      case "nmth": // natural mother
-      case "prinlaw": // parent in-law
-      case "fthinlaw": // father in-law
-      case "mthinlaw": // mother in-law
-      case "stpprn": // step parent
-      case "stpfth": // stepfather
-      case "stpmth": // stepmother
-        code = "parent";
-        display = "Parent";
-        break;
-      case "powatt":
-        code = "agent";
-        display = "Agent";
-        break;
-      default:
-        return null;
+      switch (cdaRoleCode.toLowerCase()) {
+        case "econ": // emergency contact
+          code = "emergency";
+          display = "Emergency";
+          break;
+        case "ext": // extended family member
+        case "fammemb": // family member
+          code = "family";
+          display = "Family";
+          break;
+        case "guard": // guardian
+          code = "guardian";
+          display = "Guardian";
+          break;
+        case "frnd": // friend
+          code = "friend";
+          display = "Friend";
+          break;
+        case "sps": // spouse
+        case "dompart": // domestic partner
+        case "husb": // husband
+        case "wife": // wife
+          code = "partner";
+          display = "Partner";
+          break;
+        case "work":
+          code = "work";
+          display = "Work";
+          break;
+        case "gt":
+          code = "guarantor";
+          display = "Guarantor";
+          break;
+        case "prn": // parent
+        case "fth": // father
+        case "mth": // mother
+        case "nprn": // natural parent
+        case "nfth": // natural father
+        case "nmth": // natural mother
+        case "prinlaw": // parent in-law
+        case "fthinlaw": // father in-law
+        case "mthinlaw": // mother in-law
+        case "stpprn": // step parent
+        case "stpfth": // stepfather
+        case "stpmth": // stepmother
+          code = "parent";
+          display = "Parent";
+          break;
+        case "powatt":
+          code = "agent";
+          display = "Agent";
+          break;
+        default:
+          return null;
+      }
+      fhirPatientContactRelationshipCode.setCode(code);
+      fhirPatientContactRelationshipCode.setDisplay(display);
+      return new CodeableConcept().addCoding(fhirPatientContactRelationshipCode);
     }
-    fhirPatientContactRelationshipCode.setCode(code);
-    fhirPatientContactRelationshipCode.setDisplay(display);
-    return new CodeableConcept().addCoding(fhirPatientContactRelationshipCode);
   }
 
   /**
@@ -1158,22 +1274,29 @@ public class ValueSetsTransformerImpl implements IValueSetsTransformer, Serializ
     if (cdaSeverityCode == null) {
       return null;
     }
-  
-    switch (cdaSeverityCode) {
-      case "255604002":
-        return AllergyIntoleranceSeverity.MILD;
-      case "371923003":
-        return AllergyIntoleranceSeverity.MILD;
-      case "6736007":
-        return AllergyIntoleranceSeverity.MODERATE;
-      case "371924009":
-        return AllergyIntoleranceSeverity.MODERATE;
-      case "24484000":
-        return AllergyIntoleranceSeverity.SEVERE;
-      case "399166001":
-        return AllergyIntoleranceSeverity.SEVERE;
-      default:
-        return null;
+
+    if (getMap("allergyintolerance.severity") != null) {
+      return transformCdaValueToFhirCodeValue(
+            cdaSeverityCode, 
+            getMap("allergyintolerance.severity"), 
+            AllergyIntoleranceSeverity.class);
+    } else {  
+      switch (cdaSeverityCode) {
+        case "255604002":
+          return AllergyIntoleranceSeverity.MILD;
+        case "371923003":
+          return AllergyIntoleranceSeverity.MILD;
+        case "6736007":
+          return AllergyIntoleranceSeverity.MODERATE;
+        case "371924009":
+          return AllergyIntoleranceSeverity.MODERATE;
+        case "24484000":
+          return AllergyIntoleranceSeverity.SEVERE;
+        case "399166001":
+          return AllergyIntoleranceSeverity.SEVERE;
+        default:
+          return null;
+      }
     }
   }
 
@@ -1182,24 +1305,34 @@ public class ValueSetsTransformerImpl implements IValueSetsTransformer, Serializ
    */
   public AllergyIntoleranceClinicalStatus transformStatusCode2AllergyClinicalStatus(
         String cdaStatusCode) {
-    switch (cdaStatusCode.toLowerCase()) {
-      case "active":
-        return AllergyIntoleranceClinicalStatus.ACTIVE;
-      case "nullified":
-      case "error":
-        return AllergyIntoleranceClinicalStatus.NULL;
-      case "confirmed":
-        return AllergyIntoleranceClinicalStatus.ACTIVE;
-      case "unconfirmed":
-        return AllergyIntoleranceClinicalStatus.ACTIVE;
-      case "refuted":
-        return AllergyIntoleranceClinicalStatus.INACTIVE;
-      case "inactive":
-        return AllergyIntoleranceClinicalStatus.INACTIVE;
-      case "resolved":
-        return AllergyIntoleranceClinicalStatus.RESOLVED;
-      default:
-        return null;
+
+    if (getMap("allergyintolerance.clinicalstatus") != null) {
+      return transformCdaValueToFhirCodeValue(
+            cdaStatusCode, 
+            getMap("allergyintolerance.clinicalstatus"), 
+            AllergyIntoleranceClinicalStatus.class);
+    } else {
+      switch (cdaStatusCode.toLowerCase()) {
+        case "active":
+          return AllergyIntoleranceClinicalStatus.ACTIVE;
+        case "nullified":
+        case "error":
+          return AllergyIntoleranceClinicalStatus.NULL;
+        case "confirmed":
+          return AllergyIntoleranceClinicalStatus.ACTIVE;
+        case "unconfirmed":
+          return AllergyIntoleranceClinicalStatus.ACTIVE;
+        case "refuted":
+          return AllergyIntoleranceClinicalStatus.INACTIVE;
+        case "inactive":
+          return AllergyIntoleranceClinicalStatus.INACTIVE;
+        case "resolved":
+          return AllergyIntoleranceClinicalStatus.RESOLVED;
+        case "completed":
+          return AllergyIntoleranceClinicalStatus.ACTIVE;
+        default:
+          return null;
+      }
     }
   }
 
@@ -1208,19 +1341,26 @@ public class ValueSetsTransformerImpl implements IValueSetsTransformer, Serializ
    */
   public AllergyIntoleranceVerificationStatus transformStatusCode2AllergyVerificationStatus(
         String cdaStatusCode) {
-    switch (cdaStatusCode.toLowerCase()) {
-      case "confirmed":
-        return AllergyIntoleranceVerificationStatus.CONFIRMED;
-      case "unconfirmed":
-        return AllergyIntoleranceVerificationStatus.UNCONFIRMED;
-      case "refuted":
-        return AllergyIntoleranceVerificationStatus.REFUTED;
-      case "error":
-        return AllergyIntoleranceVerificationStatus.ENTEREDINERROR;
-      case "nullified":
-        return AllergyIntoleranceVerificationStatus.NULL;        
-      default:
-        return null;
+    if (getMap("allergyintolerance.verificationstatus") != null) {
+      return transformCdaValueToFhirCodeValue(
+            cdaStatusCode, 
+            getMap("allergyintolerance.verificationstatus"), 
+            AllergyIntoleranceVerificationStatus.class);
+    } else {
+      switch (cdaStatusCode.toLowerCase()) {
+        case "confirmed":
+          return AllergyIntoleranceVerificationStatus.CONFIRMED;
+        case "unconfirmed":
+          return AllergyIntoleranceVerificationStatus.UNCONFIRMED;
+        case "refuted":
+          return AllergyIntoleranceVerificationStatus.REFUTED;
+        case "error":
+          return AllergyIntoleranceVerificationStatus.ENTEREDINERROR;
+        case "nullified":
+          return AllergyIntoleranceVerificationStatus.NULL;        
+        default:
+          return AllergyIntoleranceVerificationStatus.UNCONFIRMED;
+      }
     }
   }
 
@@ -1231,18 +1371,25 @@ public class ValueSetsTransformerImpl implements IValueSetsTransformer, Serializ
    */
   public ConditionClinicalStatus transformStatusCode2ConditionClinicalStatusCodes(
         String cdaStatusCode) {
-    switch (cdaStatusCode.toLowerCase()) {
-      // semantically not the same, but at least outcome-wise it is similar
-      case "aborted":
-        return ConditionClinicalStatus.RESOLVED;
-      case "active":
-        return ConditionClinicalStatus.ACTIVE;
-      case "completed":
-        return ConditionClinicalStatus.RESOLVED;
-      case "suspended":
-        return ConditionClinicalStatus.REMISSION;
-      default:
-        return null;
+    if (getMap("condition.clinicalstatus") != null) {
+      return transformCdaValueToFhirCodeValue(
+            cdaStatusCode, 
+            getMap("condition.clinicalstatus"), 
+            ConditionClinicalStatus.class);
+    } else {    
+      switch (cdaStatusCode.toLowerCase()) {
+        // semantically not the same, but at least outcome-wise it is similar
+        case "aborted":
+          return ConditionClinicalStatus.RESOLVED;
+        case "active":
+          return ConditionClinicalStatus.ACTIVE;
+        case "completed":
+          return ConditionClinicalStatus.RESOLVED;
+        case "suspended":
+          return ConditionClinicalStatus.REMISSION;
+        default:
+          return null;
+      }
     }
   }
 
@@ -1252,25 +1399,33 @@ public class ValueSetsTransformerImpl implements IValueSetsTransformer, Serializ
    * @return Encounter Status Code
    */
   public EncounterStatus transformStatusCode2EncounterStatus(String cdaStatusCode) {
-    switch (cdaStatusCode.toLowerCase()) {
-      case "in-progress":
-        return EncounterStatus.INPROGRESS;
-      case "active":
-        return EncounterStatus.INPROGRESS;
-      case "onleave":
-        return EncounterStatus.ONLEAVE;
-      case "finished":
-        return EncounterStatus.FINISHED;
-      case "completed":
-        return EncounterStatus.FINISHED;
-      case "cancelled":
-        return EncounterStatus.CANCELLED;
-      case "planned":
-        return EncounterStatus.PLANNED;
-      case "arrived":
-        return EncounterStatus.ARRIVED;
-      default:
-        return null;
+    
+    if (getMap("encounter.status") != null) {
+      return transformCdaValueToFhirCodeValue(
+            cdaStatusCode, 
+            getMap("encounter.status"), 
+            EncounterStatus.class);
+    } else {
+      switch (cdaStatusCode.toLowerCase()) {
+        case "in-progress":
+          return EncounterStatus.INPROGRESS;
+        case "active":
+          return EncounterStatus.INPROGRESS;
+        case "onleave":
+          return EncounterStatus.ONLEAVE;
+        case "finished":
+          return EncounterStatus.FINISHED;
+        case "completed":
+          return EncounterStatus.FINISHED;
+        case "cancelled":
+          return EncounterStatus.CANCELLED;
+        case "planned":
+          return EncounterStatus.PLANNED;
+        case "arrived":
+          return EncounterStatus.ARRIVED;
+        default:
+          return null;
+      }
     }
   }
 
@@ -1281,31 +1436,38 @@ public class ValueSetsTransformerImpl implements IValueSetsTransformer, Serializ
    */
   public MedicationDispenseStatus transformStatusCode2MedicationDispenseStatus(
         String cdaStatusCode) {
-    switch (cdaStatusCode.toLowerCase()) {
-      case "active":
-        return MedicationDispenseStatus.INPROGRESS;
-      case "in-progress":
-        return MedicationDispenseStatus.INPROGRESS;
-      case "inprogress":
-        return MedicationDispenseStatus.INPROGRESS;
-      case "on-hold":
-        return MedicationDispenseStatus.ONHOLD;
-      case "onhold":
-        return MedicationDispenseStatus.ONHOLD;
-      case "suspended":
-        return MedicationDispenseStatus.ONHOLD;
-      case "completed":
-        return MedicationDispenseStatus.COMPLETED;
-      case "nullified":
-        return MedicationDispenseStatus.ENTEREDINERROR;
-      case "error":
-        return MedicationDispenseStatus.ENTEREDINERROR;
-      case "entered-in-error":
-        return MedicationDispenseStatus.ENTEREDINERROR;
-      case "stopped":
-        return MedicationDispenseStatus.STOPPED;
-      default:
-        return null;
+    if (getMap("medicationdispense.status") != null) {
+      return transformCdaValueToFhirCodeValue(
+            cdaStatusCode, 
+            getMap("medicationdispense.status"), 
+            MedicationDispenseStatus.class);
+    } else {
+      switch (cdaStatusCode.toLowerCase()) {
+        case "active":
+          return MedicationDispenseStatus.INPROGRESS;
+        case "in-progress":
+          return MedicationDispenseStatus.INPROGRESS;
+        case "inprogress":
+          return MedicationDispenseStatus.INPROGRESS;
+        case "on-hold":
+          return MedicationDispenseStatus.ONHOLD;
+        case "onhold":
+          return MedicationDispenseStatus.ONHOLD;
+        case "suspended":
+          return MedicationDispenseStatus.ONHOLD;
+        case "completed":
+          return MedicationDispenseStatus.COMPLETED;
+        case "nullified":
+          return MedicationDispenseStatus.ENTEREDINERROR;
+        case "error":
+          return MedicationDispenseStatus.ENTEREDINERROR;
+        case "entered-in-error":
+          return MedicationDispenseStatus.ENTEREDINERROR;
+        case "stopped":
+          return MedicationDispenseStatus.STOPPED;
+        default:
+          return null;
+      }
     }
   }
 
@@ -1314,17 +1476,26 @@ public class ValueSetsTransformerImpl implements IValueSetsTransformer, Serializ
    */
   public MedicationStatementStatus transformStatusCode2MedicationStatementStatus(
         String cdaStatusCode) {
-    switch (cdaStatusCode.toLowerCase()) {
-      case "active":
-        return MedicationStatementStatus.ACTIVE;
-      case "intended":
-        return MedicationStatementStatus.INTENDED;
-      case "completed":
-        return MedicationStatementStatus.COMPLETED;
-      case "nullified":
-        return MedicationStatementStatus.ENTEREDINERROR;
-      default:
-        return null;
+    if (getMap("medicationstatement.status") != null) {
+      return transformCdaValueToFhirCodeValue(
+            cdaStatusCode, 
+            getMap("medicationstatement.status"), 
+            MedicationStatementStatus.class);
+    } else {
+      switch (cdaStatusCode.toLowerCase()) {
+        case "active":
+          return MedicationStatementStatus.ACTIVE;
+        case "intended":
+          return MedicationStatementStatus.INTENDED;
+        case "completed":
+          return MedicationStatementStatus.COMPLETED;
+        case "nullified":
+          return MedicationStatementStatus.ENTEREDINERROR;
+        case "aborted":
+          return MedicationStatementStatus.STOPPED;
+        default:
+          return null;
+      }
     }
   }
 
@@ -1334,19 +1505,26 @@ public class ValueSetsTransformerImpl implements IValueSetsTransformer, Serializ
    * @return FHIR Procedure Status.
    */
   public ProcedureStatus transformStatusCode2ProcedureStatus(String cdaStatusCode) {
-    switch (cdaStatusCode.toLowerCase()) {
-      case "active":
-        return ProcedureStatus.INPROGRESS;
-      case "completed":
-        return ProcedureStatus.COMPLETED;
-      case "aborted":
-        return ProcedureStatus.ABORTED;
-      case "aboted":
-        return ProcedureStatus.ABORTED;
-      case "error":
-        return ProcedureStatus.ENTEREDINERROR;
-      default:
-        return null;
+    if (getMap("procedure.status") != null) {
+      return transformCdaValueToFhirCodeValue(
+            cdaStatusCode, 
+            getMap("procedure.status"), 
+            ProcedureStatus.class);
+    } else {
+      switch (cdaStatusCode.toLowerCase()) {
+        case "active":
+          return ProcedureStatus.INPROGRESS;
+        case "completed":
+          return ProcedureStatus.COMPLETED;
+        case "aborted":
+          return ProcedureStatus.ABORTED;
+        case "aboted":
+          return ProcedureStatus.ABORTED;
+        case "error":
+          return ProcedureStatus.ENTEREDINERROR;
+        default:
+          return null;
+      }
     }
   }
 
@@ -1355,21 +1533,28 @@ public class ValueSetsTransformerImpl implements IValueSetsTransformer, Serializ
    */
   public ContactPointUse transformTelecommunicationAddressUse2ContactPointUse(
       TelecommunicationAddressUse cdaTelecommunicationAddressUse) {
-    switch (cdaTelecommunicationAddressUse) {
-      case H:
-        return ContactPointUse.HOME;
-      case HP:
-        return ContactPointUse.HOME;
-      case WP:
-        return ContactPointUse.WORK;
-      case TMP:
-        return ContactPointUse.TEMP;
-      case BAD:
-        return ContactPointUse.OLD;
-      case MC:
-        return ContactPointUse.MOBILE;
-      default:
-        return ContactPointUse.TEMP;
+    if (getMap("contactpoint.use") != null) {
+      return transformCdaValueToFhirCodeValue(
+            cdaTelecommunicationAddressUse.toString(), 
+            getMap("contactpoint.use"), 
+            ContactPointUse.class);
+    } else {    
+      switch (cdaTelecommunicationAddressUse) {
+        case H:
+          return ContactPointUse.HOME;
+        case HP:
+          return ContactPointUse.HOME;
+        case WP:
+          return ContactPointUse.WORK;
+        case TMP:
+          return ContactPointUse.TEMP;
+        case BAD:
+          return ContactPointUse.OLD;
+        case MC:
+          return ContactPointUse.MOBILE;
+        default:
+          return ContactPointUse.TEMP;
+      }
     }
 
   }
@@ -1382,25 +1567,32 @@ public class ValueSetsTransformerImpl implements IValueSetsTransformer, Serializ
   public ContactPointSystem transformTelValue2ContactPointSystem(String cdaTelValue) {
     if (cdaTelValue == null) {
       return null;
-    }    
+    }
 
-    switch (cdaTelValue.toLowerCase()) {
-      case "phone":
-        return ContactPointSystem.PHONE;
-      case "tel":
-        return ContactPointSystem.PHONE;
-      case "email":
-        return ContactPointSystem.EMAIL;
-      case "mailto":
-        return ContactPointSystem.EMAIL;
-      case "fax":
-        return ContactPointSystem.FAX;
-      case "http":
-        return ContactPointSystem.URL;
-      case "https":
-        return ContactPointSystem.URL;
-      default:
-        return null;
+    if (getMap("contactpoint.system") != null) {
+      return transformCdaValueToFhirCodeValue(
+            cdaTelValue, 
+            getMap("contactpoint.use"), 
+            ContactPointSystem.class);
+    } else {
+      switch (cdaTelValue.toLowerCase()) {
+        case "phone":
+          return ContactPointSystem.PHONE;
+        case "tel":
+          return ContactPointSystem.PHONE;
+        case "email":
+          return ContactPointSystem.EMAIL;
+        case "mailto":
+          return ContactPointSystem.EMAIL;
+        case "fax":
+          return ContactPointSystem.FAX;
+        case "http":
+          return ContactPointSystem.URL;
+        case "https":
+          return ContactPointSystem.URL;
+        default:
+          return null;
+      }
     }
   }
 
@@ -1421,5 +1613,26 @@ public class ValueSetsTransformerImpl implements IValueSetsTransformer, Serializ
       }
     }
     return coding;
+  }
+
+  /**
+   * Locates a Concept Map within the Concept Map Store.
+   * @param name Name of the Map to look for.
+   * @return Concept Map
+   */
+  private ConceptMap getMap(String name) {
+    if (maps != null 
+        && maps.stream().anyMatch(c -> c.getIdentifier().getValue().toLowerCase().contains(name))) {
+      Optional<ConceptMap> map = 
+          maps.stream()
+              .filter(c -> c.getIdentifier().getValue().toLowerCase().contains(name)).findFirst();
+      if (map.isPresent()) {
+        return map.get();
+      } else {
+        return null;
+      }
+    } else {
+      return null;
+    }
   }
 }

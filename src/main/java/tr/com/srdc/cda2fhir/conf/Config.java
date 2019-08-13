@@ -43,7 +43,7 @@ public class Config {
   // CDA document
   public static final String DEFAULT_COMMUNICATION_LANGUAGE_CODE_SYSTEM = "urn:ietf:bcp:47";
   public static final ConditionVerificationStatus DEFAULT_CONDITION_VERIFICATION_STATUS = 
-      ConditionVerificationStatus.CONFIRMED;
+      ConditionVerificationStatus.UNKNOWN;
   public static final CompositionStatus DEFAULT_COMPOSITION_STATUS = CompositionStatus.PRELIMINARY;
   public static final ContactPointSystem DEFAULT_CONTACT_POINT_SYSTEM = ContactPointSystem.PHONE;
   public static final Coding DEFAULT_ENCOUNTER_PARTICIPANT_TYPE_CODE = 

@@ -32,7 +32,7 @@ import tr.com.srdc.cda2fhir.util.IdGeneratorEnum;
 public class SampleCdaTransformTest {
 
   private FhirContext ctx;
-  private static final String IMPORT_FILE = "c:/docker/data/ccd/sample.xml";
+  private static final String IMPORT_FILE = "c:/docker/data/ccd/epic_prod_ccda_messages1.xml";
   private File importFile;
 
   /**

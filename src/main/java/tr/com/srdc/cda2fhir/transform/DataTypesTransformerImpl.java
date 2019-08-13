@@ -104,9 +104,26 @@ public class DataTypesTransformerImpl implements IDataTypesTransformer, Serializ
 
   public static final long serialVersionUID = 2L;
 
-  private IValueSetsTransformer vst = new ValueSetsTransformerImpl();
+  private IValueSetsTransformer vst;
 
   private final Logger logger = LoggerFactory.getLogger(DataTypesTransformerImpl.class);
+  
+  private List<ConceptMap> maps;
+
+  public DataTypesTransformerImpl() {
+    maps = null;
+    vst = new ValueSetsTransformerImpl();
+  }
+
+  /**
+   * Constructor with parameter for Concept Map use.
+   * @param maps Concept Maps to pass.
+   */
+  public DataTypesTransformerImpl(List<ConceptMap> maps) {
+    this();
+    this.maps = maps;
+    vst = new ValueSetsTransformerImpl(this.maps);
+  }
 
   /**
    * Transforms an AD item to Address.
@@ -237,9 +254,7 @@ public class DataTypesTransformerImpl implements IDataTypesTransformer, Serializ
       return null;
     }
     if (bin.getRepresentation().getLiteral() != null) {
-      // TODO: It doesn't seem convenient. There should be a way to get the value of
-      // BIN.
-      Base64BinaryType base64BinaryDt = new Base64BinaryType();
+      Base64BinaryType base64BinaryDt = new Base64BinaryType();      
       base64BinaryDt.setValue(bin.getRepresentation().getLiteral().getBytes());
       return base64BinaryDt;
     } else {
@@ -302,8 +317,8 @@ public class DataTypesTransformerImpl implements IDataTypesTransformer, Serializ
 
     //Add the Original Text to the Codeable Concept.
     if (cd.getOriginalText() != null && !cd.getOriginalText().isSetNullFlavor()) {
-      myCodeableConcept.setText(cd.getOriginalText().getText());
-    }
+      myCodeableConcept.setText(cd.getOriginalText().getText().replace("\n", "").trim());
+    }    
 
     // translation
     if (cd.getTranslations() != null && !cd.getTranslations().isEmpty()) {
@@ -376,7 +391,7 @@ public class DataTypesTransformerImpl implements IDataTypesTransformer, Serializ
 
     // Add the Original Text to the Codeable concept.
     if (cd.getOriginalText() != null && !cd.getOriginalText().isSetNullFlavor()) {
-      myCodeableConcept.setText(cd.getOriginalText().getText());
+      myCodeableConcept.setText(cd.getOriginalText().getText().replace("\n", "").trim());
     }
 
     // .
@@ -479,6 +494,9 @@ public class DataTypesTransformerImpl implements IDataTypesTransformer, Serializ
     // mediaType -> contentType
     if (ed.isSetMediaType() && ed.getMediaType() != null && !ed.getMediaType().isEmpty()) {
       attachment.setContentType(ed.getMediaType());
+    } else {
+      //Default the Mime type to plain text.
+      attachment.setContentType("text/plain");
     }
 
     // language -> language
@@ -528,7 +546,15 @@ public class DataTypesTransformerImpl implements IDataTypesTransformer, Serializ
     if (en.getUses() != null && !en.getUses().isEmpty()) {
       for (EntityNameUse entityNameUse : en.getUses()) {
         if (entityNameUse != null) {
-          myHumanName.setUse(vst.transformEntityNameUse2NameUse(entityNameUse));
+          if (getMap("humanname.use") != null) {
+            myHumanName.setUse(
+                  vst.transformCdaValueToFhirCodeValue(
+                        entityNameUse.toString(), 
+                        getMap("humannam.use"), 
+                        NameUse.class));
+          } else {
+            myHumanName.setUse(vst.transformEntityNameUse2NameUse(entityNameUse));
+          }
         }
       }
     }
@@ -569,70 +595,6 @@ public class DataTypesTransformerImpl implements IDataTypesTransformer, Serializ
   }
 
   /**
-   * Transforms a EN Entity to a Human Name and applies a Concept Map for the Use.
-   * @param en CDA EN Entitiy.
-   * @param map Concept Map
-   * @return Human Name
-   */
-  public HumanName transformEN2HumanName(EN en, ConceptMap map) {
-    if (en == null || en.isSetNullFlavor()) {
-      return null;
-    }
-
-    HumanName name = new HumanName();
-    // text -> text
-    if (en.getText() != null && !en.getText().isEmpty()) {
-      name.setText(en.getText());
-    }
-
-    // use -> use
-    if (en.getUses() != null && !en.getUses().isEmpty()) {
-      for (EntityNameUse entityNameUse : en.getUses()) {
-        if (entityNameUse != null) {
-          name.setUse(
-                vst.transformCdaValueToFhirCodeValue(entityNameUse.toString(), map, NameUse.class));
-        }
-      }
-    }
-
-    // family -> family
-    if (en.getFamilies() != null && !en.getFamilies().isEmpty()) {
-      for (ENXP family : en.getFamilies()) {
-        name.setFamily(family.getText());
-      }
-    }
-
-    // given -> given
-    if (en.getGivens() != null && !en.getGivens().isEmpty()) {
-      for (ENXP given : en.getGivens()) {
-        name.addGiven(given.getText());
-      }
-    }
-
-    // prefix -> prefix
-    if (en.getPrefixes() != null && !en.getPrefixes().isEmpty()) {
-      for (ENXP prefix : en.getPrefixes()) {
-        name.addPrefix(prefix.getText());
-      }
-    }
-
-    // suffix -> suffix
-    if (en.getSuffixes() != null && !en.getSuffixes().isEmpty()) {
-      for (ENXP suffix : en.getSuffixes()) {
-        name.addSuffix(suffix.getText());
-      }
-    }
-
-    // validTime -> period
-    if (en.getValidTime() != null && !en.getValidTime().isSetNullFlavor()) {
-      name.setPeriod(transformIvl_TS2Period(en.getValidTime()));
-    }
-
-    return name;
-
-  }
-
-  /**
    * Transforms a CDA PN person Name Entity into a FHIR Human Name.
    * @param pn CDA Person Name Entitiy.
    * @return FHIR Human Name.
@@ -669,17 +631,21 @@ public class DataTypesTransformerImpl implements IDataTypesTransformer, Serializ
 
     // Use
     for (EntityNameUse use : pn.getUses()) {
-      vst.transformEntityNameUse2NameUse(use);
+      if (getMap("humanname.use") != null) {
+        name.setUse(
+            vst.transformCdaValueToFhirCodeValue(
+              use.toString(), 
+              getMap("humanname.use"), 
+              NameUse.class));
+      } else {
+        name.setUse(vst.transformEntityNameUse2NameUse(use));
+      }
     }
 
     // Validation Time -> period
     if (pn.getValidTime() != null && !pn.getValidTime().isSetNullFlavor()) {
       name.setPeriod(transformIvl_TS2Period(pn.getValidTime()));
     }
-
-
-
-
     return name;
   }
 
@@ -692,9 +658,7 @@ public class DataTypesTransformerImpl implements IDataTypesTransformer, Serializ
     if (ii == null || ii.isSetNullFlavor()) {
       return null;
     }
-
     Identifier identifier = new Identifier();
-
     // if both root and extension are present, then
     // root -> system
     // extension -> value
@@ -704,10 +668,27 @@ public class DataTypesTransformerImpl implements IDataTypesTransformer, Serializ
         && !ii.getExtension().isEmpty()) {
       // root is oid
       if (StringUtil.isOid(ii.getRoot())) {
-        identifier.setSystem("urn:oid:" + ii.getRoot());
+        if (getMap("identifier.system") != null) {
+          identifier.setSystem("urn:oid:" 
+              + vst.transformCdaValueToFhirCodeValue(
+                    ii.getRoot(), 
+                    getMap("identifier.system"), 
+                    String.class));
+        } else {
+          identifier.setSystem("urn:oid:" + ii.getRoot());
+        }
+        
       } else if (StringUtil.isUuid(ii.getRoot())) {
         // root is uuid
-        identifier.setSystem("urn:uuid:" + ii.getRoot());
+        if (getMap("identifier.system") != null) {
+          identifier.setSystem("urn:uuid:" 
+              + vst.transformCdaValueToFhirCodeValue(
+                    ii.getRoot(), 
+                    getMap("identifier.system"), 
+                    String.class));
+        } else {
+          identifier.setSystem("urn:uuid:" + ii.getRoot());
+        }
       } else {
         identifier.setSystem(ii.getRoot());
       }
@@ -721,49 +702,26 @@ public class DataTypesTransformerImpl implements IDataTypesTransformer, Serializ
       // extension -> value
       identifier.setValue(ii.getExtension());
     }
-    return identifier;
 
-  }
-
-  /**
-   * Transforms an II CDA Entitiy into a FHIR Identifier utilizing Concept Maps.
-   * @param ii CDA II Entity
-   * @param maps Concept Maps to use.
-   * @return Identifier.
-   */
-  public Identifier transformII2Identifier(II ii, List<ConceptMap> maps) {
-    Identifier id = new Identifier();
-    Optional<ConceptMap> useMap = 
-        maps.stream()
-          .filter(c -> c.getIdentifier().getValue().contains("identifier.use"))
-          .findFirst();
-    if (useMap.isPresent()) {
-      id.setUse(vst.transformCdaValueToFhirCodeValue("", useMap.get(), IdentifierUse.class));
+    //Add the Type based on a Concept Map.
+    if (getMap("identifier.type") != null) {
+      identifier.setType(
+          vst.transformCdaValueToFhirCodeValue(
+              "", 
+              getMap("identifier.type"), 
+              CodeableConcept.class));
     } 
 
-    Optional<ConceptMap> typeMap = 
-        maps.stream()
-            .filter(c -> c.getIdentifier().getValue().contains("identifier.type"))
-            .findFirst();
-    if (typeMap.isPresent()) {
-      id.setType(vst.transformCdaValueToFhirCodeValue("", typeMap.get(), CodeableConcept.class));
+    // Add the Use based on a Concept Map.
+    if (getMap("identifier.use") != null) {
+      identifier.setUse(
+          vst.transformCdaValueToFhirCodeValue(
+            "", 
+            getMap("identifier.use"), 
+            IdentifierUse.class));
     }
+    return identifier;
 
-    if (ii.getRoot() != null && !ii.getRoot().isEmpty()) {
-      Optional<ConceptMap> systemMap = 
-          maps.stream()
-            .filter(c -> c.getIdentifier().getValue().contains("identifier.system")).findFirst();
-      if (systemMap.isPresent()) {
-        id.setSystem(
-              vst.transformCdaValueToFhirCodeValue(ii.getRoot(), systemMap.get(), String.class));
-      } else {
-        id.setSystem(ii.getRoot());
-      }
-    }
-    if (ii.getExtension() != null && !ii.getExtension().isEmpty()) {
-      id.setValue(ii.getExtension());
-    }
-    return id;
   }
 
   /**
@@ -819,17 +777,19 @@ public class DataTypesTransformerImpl implements IDataTypesTransformer, Serializ
     }
 
     Period period = new Period();
-
+    DateTimeType highDate = null;
+    DateTimeType lowDate = null;
+    
     // low -> start
     if (ivlts.getLow() != null && !ivlts.getLow().isSetNullFlavor()) {
-      String date = ivlts.getLow().getValue();
-      period.setStartElement(transformString2DateTime(date));
+      lowDate = transformString2DateTime(ivlts.getLow().getValue());  
+      period.setStartElement(lowDate);
     }
 
     // high -> end
     if (ivlts.getHigh() != null && !ivlts.getHigh().isSetNullFlavor()) {
-      String date = ivlts.getHigh().getValue();
-      period.setEndElement(transformString2DateTime(date));
+      highDate = transformString2DateTime(ivlts.getHigh().getValue());
+      period.setEndElement(highDate);
     }
 
     // low is null, high is null and the value is carrying the low value
@@ -1708,5 +1668,32 @@ public class DataTypesTransformerImpl implements IDataTypesTransformer, Serializ
       }
     }
     return date;
+  }
+
+  /**
+   * Returns the first instance of a given Concept Map in the Concept Map
+   * list.
+   * @param mapName Concept Map Name.
+   * @return Concept Map.
+   */
+  private ConceptMap getMap(String mapName) {
+    if (maps != null) {
+      if (maps.stream()
+          .anyMatch(c -> c.getIdentifier().getValue().toLowerCase().contains(mapName))) {
+        Optional<ConceptMap> map = 
+            maps.stream()
+                .filter(c -> c.getIdentifier().getValue().toLowerCase().contains(mapName))
+                .findFirst();
+        if (map.isPresent()) {
+          return map.get();
+        } else {
+          return null;
+        }
+      } else {
+        return null;
+      }
+    } else {
+      return null;
+    }
   }
 }
