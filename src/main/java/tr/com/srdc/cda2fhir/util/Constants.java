@@ -20,7 +20,7 @@ package tr.com.srdc.cda2fhir.util;
  * #L%
  */
 
-public class Constants {
+public final class Constants {
 
   // DAF Profile URLs (based on FHIR DSTU2)
   public static final String PROFILE_DAF_ALLERGY_INTOLERANCE = "http://hl7.org/fhir/StructureDefinition/daf-allergyintolerance";

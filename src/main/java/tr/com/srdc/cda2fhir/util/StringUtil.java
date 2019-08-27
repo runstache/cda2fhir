@@ -22,7 +22,7 @@ package tr.com.srdc.cda2fhir.util;
 
 import java.util.regex.Pattern;
 
-public class StringUtil {
+public final class StringUtil {
 
   // oid one is very simple, not a complete validator
   private static final Pattern OID_PATTERN = Pattern.compile("([0-9]+\\.)*[0-9]+");

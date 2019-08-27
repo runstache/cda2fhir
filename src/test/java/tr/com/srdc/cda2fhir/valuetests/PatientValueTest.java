@@ -3,7 +3,6 @@ package tr.com.srdc.cda2fhir.valuetests;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
@@ -35,7 +34,7 @@ import tr.com.srdc.cda2fhir.transform.CcdTransformerImpl;
 import tr.com.srdc.cda2fhir.transform.ICdaTransformer;
 import tr.com.srdc.cda2fhir.util.IdGeneratorEnum;
 
-public class PatientValueTests {
+public class PatientValueTest {
 
   /**
    * Maps the current Gold Standard CDA to a FHIR Bundle and validates the values

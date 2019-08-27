@@ -19,7 +19,7 @@ import org.junit.Test;
 import tr.com.srdc.cda2fhir.transform.IValueSetsTransformer;
 import tr.com.srdc.cda2fhir.transform.ValueSetsTransformerImpl;
 
-public class ValueSetsTransformerTests {
+public class ValueSetsTransformerTest {
 
   private IValueSetsTransformer vst;
   private ConceptMap map;

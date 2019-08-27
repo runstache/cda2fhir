@@ -95,23 +95,7 @@ public class UuidFactory {
                 + substance.getCode().getCodingFirstRep().getCode());
           }
         }
-
-        if (resource instanceof Medication) {
-          Medication med = (Medication)resource;
-          if (med.getCode() != null && med.getCode().getCoding() != null) {
-            Coding mdCode = med.getCode().getCodingFirstRep();
-            if (mdCode.getSystem() != null && mdCode.getCode() != null) {
-              key = mdCode.getClass().getName() + "|" + mdCode.getSystem() + "|" + mdCode.getCode();
-              return addKey(key);
-            } else {
-              if (mdCode.getCode() != null) {
-                key = resource.getClass().getName() + "|" + mdCode.getCode();
-                return addKey(key);
-              }
-            }
-          }
-        }
-
+        
         if (resource.getId() != null) {
           key = resource.getClass().getName() + "|" + resource.getId();        
         } else {
@@ -122,6 +106,22 @@ public class UuidFactory {
     } catch (Exception ex) {
       //No Identifiers in the Resource.
       String key = "";
+      if (resource instanceof Medication) {
+        Medication med = (Medication)resource;
+        if (med.getCode() != null && med.getCode().getCoding() != null) {
+          Coding mdCode = med.getCode().getCodingFirstRep();
+          if (mdCode.getSystem() != null && mdCode.getCode() != null) {
+            key = resource.getClass().getName() + "|" + mdCode.getSystem() + "|" + mdCode.getCode();
+            return addKey(key);
+          } else {
+            if (mdCode.getCode() != null) {
+              key = resource.getClass().getName() + "|" + mdCode.getCode();
+              return addKey(key);
+            }
+          }
+        }
+      }
+      
       if (resource.getId() != null) {
         key = resource.getClass().getName() + "|" + resource.getId();        
       } else {
