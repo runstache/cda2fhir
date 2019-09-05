@@ -23,14 +23,11 @@ document transformers, resource transformers, data type transformers and value s
 document transformer for Continuity of Care Document (CCD), but further document transformers, e.g. for Discharge Summary or Referral Note,
 can be easily introduced by reusing the already existing section and entry transformers. Although the cda2fhir library expects C-CDA R2.1 compliant
 documents/entries, it has been tested as well with several older document instances compliant with earlier releases of C-CDA. The official
-[HL7 FHIR Validator](https://www.hl7.org/fhir/validation.html#jar) is also integrated for automated validation of the generated FHIR resources.
 
-All the mappings implemented between CDA artifacts and FHIR resources, data types and value sets are documented in this sheet:
-[C-CDA CCD to FHIR DAF Mapping](https://docs.google.com/spreadsheets/d/15Kv6PFyPh91sH1JMYwLH7D2yjh4HOTy5pjETjQNRyaU/edit?usp=sharing)
+All the mappings implemented between CDA artifacts and FHIR resources, data types and value sets are documented in this sheet CDA2FHIR_Mappings.xls located in the mappings directory of this project.
 
 [Model Driven Health Tools (MDHT)](https://projects.eclipse.org/projects/modeling.mdht) is used for CDA manipulation and
-[HAPI](http://hapifhir.io/) is used for FHIR manipulation. The current implementation produces DSTU2 resources.
-We are planning to cover STU3 resources as well, after the specification becomes official.
+[HAPI](http://hapifhir.io/) is used for FHIR manipulation. The current implementation produces DSTU3 resources.
 
 ## New Fork Additions
 
@@ -54,7 +51,68 @@ The Participants identified with a typeCode of "IND" are now being mapped as Pat
 
 ### Concept Maps
 
-Support for leveraging Concept Maps has been added to the Data Types, Resource and Value Sets Transformers.  These will allow more complicated mapping to be utilized instead of the hand mapping defined in some of the methods.  Concept Maps should contain an Identifier with a FHIR Path value as the value.  This will allow the library to determine a map to use in a particular situation.
+Support for leveraging Concept Maps has been added to the Data Types, Resource and Value Sets Transformers.  These will allow more complicated mapping to be utilized instead of the hand mapping defined in some of the methods.  Each transformer contains a constructor to allow the defining of a List of Concept Maps.  The library will use these collections to map values when they are available to convert the values.
+
+For the Library to find a Map to use,:
+
+* It must contain an identifier
+* The identifier.value must contain the FHIR Path to the property to use it for.
+* Each Map must contain at least one group.
+* If a matching Source Component is not present, the Unmapped Component is used if defined and set to FIXED.
+
+Example Test:
+
+```java
+@Before
+  public void setup() {
+    vst = new ValueSetsTransformerImpl();
+    Identifier id = new Identifier();
+    id.setSystem("urn:oid:TEST.CONCEPTMAP.OID");
+    id.setValue("patient.gender");
+
+    map = new ConceptMap();
+    map.setIdentifier(id);
+    SourceElementComponent source = new SourceElementComponent();
+    source.setCode("m");
+    source.setDisplay("male");
+    TargetElementComponent target = new TargetElementComponent();
+    target.setCode("male");
+    target.setDisplay("Male");
+    source.addTarget(target);
+    ConceptMapGroupComponent group = new ConceptMapGroupComponent();
+    group.setSource("2.16.840.1.113883.4.642.3.1");
+    group.setTarget("http://hl7.org/fhir/ValueSet/administrative-gender");
+    group.setTargetVersion("1.0");
+    group.addElement(source);
+    group.setUnmapped(
+          new ConceptMapGroupUnmappedComponent()
+            .setCode("unknown")
+            .setDisplay("Unknown")
+            .setMode(ConceptMapGroupUnmappedMode.FIXED));
+    map.addGroup(group);
+  }
+
+  @Test
+  public void testCdaCodeToFhirCodeConceptMap() {
+    assertEquals(Enumerations.AdministrativeGender.MALE,
+        vst.transformCdaValueToFhirCodeValue("m", map, Enumerations.AdministrativeGender.class));
+  }
+```
+
+### Organizations and Practitioners
+
+New rules for the Organizations and Practitioners have been added to the library. These revolve around having at least an identifier to be established on any of these objects before including them in the Bundle and as Reference.
+
+#### Organization Rules
+
+* FHIR Organizations must have at least a Name populated.  
+* If a Name is not present, then an Identifier must be set.  
+* If neither of these items can be populated, the Organization is not included in any references or bundles generated.
+
+#### Practitioner Rules
+
+* FHIR Practitions must have at least one Identifier established.
+* If a practitioner does not have an Identifier, they are excluded from any references and bundles generated.
 
 ## Installation
 
@@ -106,7 +164,15 @@ Config.setGenerateNarrative(true);
 Bundle bundle = ccdTransformer.transformDocument(cda);
 
 // Through HAPI library, the Bundle can easily be printed in JSON or XML format.
-FHIRUtil.printJSON(bundle, "src/test/resources/output/C-CDA_R2-1_CCD-w-daf.json");
+// FHIRUtil has been deprecated.  Use the Json Parser from FhirContext.
+// FHIRUtil.printJSON(bundle, "src/test/resources/output/C-CDA_R2-1_CCD-w-daf.json");
+File file = new File("src/test/resources/output/C-CDA_R2-1_CCD-w-daf.json");
+file.getParentFile().mkdirs();
+writer = new FileWriter(file);
+FhirContext ctx = FhirContext.forDstu3();
+IParser parser = ctx.newJsonParser();
+parser.setPrettyPrint(true);
+writer.append((String)parser.encodeResourceToString(bundle));
 ```
 
 Further code examples can be found in [CCDTransformerTest](https://github.com/srdc/cda2fhir/blob/master/src/test/java/tr/com/srdc/cda2fhir/CCDTransformerTest.java) class.
@@ -143,12 +209,20 @@ for(Section cdaSec: ccd.getSections()) {
     }
 }
 
-// Again, any FHIR resource can be printed through FHIRUtil methods.
-FHIRUtil.printXML(fmh, "src/test/resources/output/family-member-history.xml");
+// FHIRUtil has been Deprecated.  Use the JSON Parser from FhirContext.
+// FHIRUtil.printXML(fmh, "src/test/resources/output/family-member-history.xml");
+File file = new File("src/test/resources/output/family-member-history.xml");
+file.getParentFile().mkdirs();
+writer = new FileWriter(file);
+FhirContext ctx = FhirContext.forDstu3();
+IParser parser = ctx.newJsonParser();
+parser.setPrettyPrint(true);
+writer.append((String)parser.encodeResourceToString(fmh));
+
 ```
 
 It should be noted that most of the time, IResourceTransformer methods return a FHIR Bundle composed of a few FHIR resources,
-instead of a single FHIR resource as in the example above. For example, tProblemObservation2Condition method returns a Bundle
+instead of a single FHIR resource as in the example above. For example, transformProblemObservation2Condition method returns a Bundle
 that contains the corresponding Condition as the first entry, which can also include other referenced resources such as Encounter, Practitioner.
 
 Further examples can be found in [ResourceTransformerTest](https://github.com/srdc/cda2fhir/blob/master/src/test/java/tr/com/srdc/cda2fhir/ResourceTransformerTest.java) class
@@ -157,6 +231,7 @@ and [CCDTransformerImpl](https://github.com/srdc/cda2fhir/blob/master/src/main/j
 ## Validating generated FHIR resources
 
 __This has been deprecated and removed from this version of the project.  It is better to utilize the HL7 FHIR Validator outside of the Java library to validate.__
+
 We have also integrated the official [HL7 FHIR Validator](https://www.hl7.org/fhir/validation.html#jar), although in a bit ugly way since this validator is not available in any
 Maven repo. We have implemented a wrapper interface and a class on top of this validator: IValidator and ValidatorImpl. A resource can be validated individually, or a Bundle
 containing several resources as in the case of CDA transformation outcome can be validated at once. When (DAF) profile metadata is provided within the resources' meta.profile

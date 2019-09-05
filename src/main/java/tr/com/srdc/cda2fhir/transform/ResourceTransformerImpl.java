@@ -1267,7 +1267,7 @@ public class ResourceTransformerImpl implements IResourceTransformer, Serializab
         if (cdaPerformer != null && !cdaPerformer.isSetNullFlavor()) {
           EncounterParticipantComponent fhirParticipant = new  EncounterParticipantComponent();
 
-          // default encunter participant type code
+          // default encounter participant type code
           fhirParticipant.addType().addCoding(Config.DEFAULT_ENCOUNTER_PARTICIPANT_TYPE_CODE);
 
           Practitioner fhirPractitioner = null;
@@ -1528,10 +1528,7 @@ public class ResourceTransformerImpl implements IResourceTransformer, Serializab
     }
 
     // serviceDeliveryLocation -> location.location
-    // Although encounter contains serviceDeliveryLocation,
-    // getServiceDeliveryLocation method returns empty list
-    // Therefore, get the location information from
-    // participant[@typeCode='LOC'].participantRole
+
     if (cdaEncounterActivity.getServiceDeliveryLocations() != null 
         && !cdaEncounterActivity.getServiceDeliveryLocations().isEmpty()) {
       for (ServiceDeliveryLocation sdloc :
@@ -1709,7 +1706,7 @@ public class ResourceTransformerImpl implements IResourceTransformer, Serializab
     if (serviceEvent.getEffectiveTime() != null 
         && !serviceEvent.getEffectiveTime().isSetNullFlavor())  {      
       if (serviceEvent.getEffectiveTime().getLow() != null) {
-        identifier.setValue(serviceEvent.getEffectiveTime().getHigh().getValue());
+        identifier.setValue(serviceEvent.getEffectiveTime().getLow().getValue());
       } else {
         if (serviceEvent.getEffectiveTime().getHigh() != null) {
           identifier.setValue(serviceEvent.getEffectiveTime().getHigh().getValue());
@@ -1724,7 +1721,12 @@ public class ResourceTransformerImpl implements IResourceTransformer, Serializab
         identifier.setValue(serviceEvent.getClassCode().getName());
       }
     }
-    fhirTeam.addIdentifier(identifier);
+    if (identifier.getValue() != null) {
+      fhirTeam.addIdentifier(identifier);
+    } else {
+      //No Identifiers can be set so a Team is not created.
+      return null;
+    }
     
     //Id
     IdType teamId = new IdType("CareTeam", "urn:uuid:" + guidFactory.addKey(fhirTeam));
@@ -1868,7 +1870,8 @@ public class ResourceTransformerImpl implements IResourceTransformer, Serializab
         }
       }
     }
-  
+    //Add the Subject
+    careTeam.setSubject(getPatientRef());
 
     return bundle;
   }
@@ -2800,16 +2803,6 @@ public class ResourceTransformerImpl implements IResourceTransformer, Serializab
 
     Bundle fhirMedicationBundle = new Bundle();
     
-
-    // resource id
-    IdType resourceId = new IdType("Medication", 
-        "urn:uuid:" + guidFactory.addKey(fhirMedication).toString());
-    fhirMedication.setId(resourceId);
-
-    fhirMedicationBundle.addEntry(new BundleEntryComponent()
-        .setResource(fhirMedication)
-        .setFullUrl(fhirMedication.getId()));
-
     // meta.profile
     if (Config.isGenerateDafProfileMetadata()) {
       fhirMedication.getMeta().addProfile(Constants.PROFILE_DAF_MEDICATION);
@@ -2841,6 +2834,15 @@ public class ResourceTransformerImpl implements IResourceTransformer, Serializab
         }
       }
     }
+
+    // resource id
+    IdType resourceId = new IdType("Medication", 
+        "urn:uuid:" + guidFactory.addKey(fhirMedication).toString());
+    fhirMedication.setId(resourceId);
+
+    fhirMedicationBundle.addEntry(new BundleEntryComponent()
+        .setResource(fhirMedication)
+        .setFullUrl(fhirMedication.getId()));
 
     // manufacturerOrganization -> manufacturer
     if (cdaManufacturedProduct.getManufacturerOrganization() != null
@@ -3566,7 +3568,7 @@ public class ResourceTransformerImpl implements IResourceTransformer, Serializab
         Optional<ConceptMap> map = 
             conceptMaps.stream().filter(c -> 
               c.getIdentifier().getSystem().toLowerCase().contains("location") 
-              && c.getIdentifier().getSystem().toLowerCase().contains("service")).findFirst();
+              && c.getIdentifier().getSystem().toLowerCase().contains("type")).findFirst();
         if (map.isPresent()) {
           fhirLocation.setType(
               vst.transformCdaValueToFhirCodeValue(

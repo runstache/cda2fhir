@@ -12,7 +12,7 @@ import org.hl7.fhir.dstu3.model.ConceptMap.ConceptMapGroupUnmappedMode;
 import org.hl7.fhir.dstu3.model.ConceptMap.SourceElementComponent;
 import org.hl7.fhir.dstu3.model.ConceptMap.TargetElementComponent;
 import org.hl7.fhir.dstu3.model.Enumerations;
-
+import org.hl7.fhir.dstu3.model.Identifier;
 import org.junit.Before;
 import org.junit.Test;
 
@@ -31,7 +31,12 @@ public class ValueSetsTransformerTest {
   public void setup() {
     vst = new ValueSetsTransformerImpl();
 
+    Identifier id = new Identifier();
+    id.setSystem("urn:oid:TEST.CONCEPTMAP.OID");
+    id.setValue("patient.gender");
+
     map = new ConceptMap();
+    map.setIdentifier(id);
     SourceElementComponent source = new SourceElementComponent();
     source.setCode("m");
     source.setDisplay("male");
