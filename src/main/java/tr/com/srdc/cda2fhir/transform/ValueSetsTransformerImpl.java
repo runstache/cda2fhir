@@ -279,13 +279,13 @@ public class ValueSetsTransformerImpl implements IValueSetsTransformer, Serializ
         case "235719002":
         case "418471000":
           return AllergyIntoleranceCategory.FOOD;
+        case "419199007":
         case "232347008":
-          return AllergyIntoleranceCategory.ENVIRONMENT;
         case "420134006":
         case "418038007":
-        case "419199007":
+          return AllergyIntoleranceCategory.ENVIRONMENT;          
         default:
-          return null;
+          return AllergyIntoleranceCategory.ENVIRONMENT;
       }
     }
   }

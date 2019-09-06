@@ -297,7 +297,7 @@ public class CcdTransformerImpl implements ICdaTransformer, Serializable {
     // transform the sections
     for (Section cdaSec : ccd.getSections()) {
       SectionComponent fhirSec = resTransformer.transformSection2Section(cdaSec);
-
+      logger.info(cdaSec.getClass().getName().toString() + " - " + cdaSec.getTitle().toString());
       if (fhirSec == null) {
         continue;
       } else {
@@ -312,7 +312,7 @@ public class CcdTransformerImpl implements ICdaTransformer, Serializable {
           Bundle allBundle = resTransformer.transformAllergyProblemAct2AllergyIntolerance(probAct);
           mergeBundles(allBundle, ccdBundle, fhirSec, AllergyIntolerance.class);
         }
-      } else if (cdaSec instanceof EncountersSection) {
+      } else if (cdaSec instanceof EncountersSection) {        
         EncountersSection encSec = (EncountersSection) cdaSec;
         for (EncounterActivities encAct : encSec.getConsolEncounterActivitiess()) {
           Bundle encBundle = resTransformer.transformEncounterActivity2Encounter(encAct);
@@ -390,7 +390,7 @@ public class CcdTransformerImpl implements ICdaTransformer, Serializable {
       } else if (cdaSec instanceof PayersSection) {
         continue;
       } else if (cdaSec instanceof PlanOfCareSection) {
-        continue;
+        continue;      
       } else if (cdaSec instanceof ProblemSection) {
         ProblemSection probSec = (ProblemSection) cdaSec;
         for (ProblemConcernAct pcAct : probSec.getConsolProblemConcerns()) {
@@ -431,7 +431,7 @@ public class CcdTransformerImpl implements ICdaTransformer, Serializable {
         }
       }
     }
-
+    
     //Add the Document Reference 
     Bundle docBundle = resTransformer.transformCda2DocumentReference(cda);
     if (docBundle != null) {

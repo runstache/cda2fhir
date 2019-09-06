@@ -399,9 +399,30 @@ public class ResourceTransformerImpl implements IResourceTransformer, Serializab
                                 .getPlayingEntity()
                                 .getCode().isSetNullFlavor()) {
                       
-                        fhirAllergyIntolerance.setCode(
-                            dtt.transformCD2CodeableConcept(participant.getParticipantRole()
-                            .getPlayingEntity().getCode()));
+                        CodeableConcept code = 
+                            dtt.transformCD2CodeableConcept(
+                                  participant.getParticipantRole().getPlayingEntity().getCode());
+                        if (participant.getParticipantRole()
+                            .getPlayingEntity().getNames() != null) {
+                          for (PN name : 
+                              participant.getParticipantRole().getPlayingEntity().getNames()) {
+                            code.setText(name.getText());
+                          }
+                        }
+                        fhirAllergyIntolerance.setCode(code);
+                            
+                      } else {
+                        if (participant.getParticipantRole()
+                            .getPlayingEntity().getNames() != null) {
+                          CodeableConcept code = new CodeableConcept();
+                          for (PN name : 
+                              participant.getParticipantRole().getPlayingEntity().getNames()) {
+                            code.setText(name.getText());
+                          }
+                          if (code.getText() != null) {
+                            fhirAllergyIntolerance.setCode(code);
+                          }
+                        }
                       }
                     }
                   }
