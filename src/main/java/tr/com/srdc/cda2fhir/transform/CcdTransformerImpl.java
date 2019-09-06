@@ -297,7 +297,6 @@ public class CcdTransformerImpl implements ICdaTransformer, Serializable {
     // transform the sections
     for (Section cdaSec : ccd.getSections()) {
       SectionComponent fhirSec = resTransformer.transformSection2Section(cdaSec);
-      logger.info(cdaSec.getClass().getName().toString() + " - " + cdaSec.getTitle().toString());
       if (fhirSec == null) {
         continue;
       } else {
