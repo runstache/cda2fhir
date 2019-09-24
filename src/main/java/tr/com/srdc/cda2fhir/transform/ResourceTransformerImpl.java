@@ -4673,7 +4673,7 @@ public class ResourceTransformerImpl implements IResourceTransformer, Serializab
       }
 
       // Set the Id
-      IdType idType = new IdType("DocumentReference", "urn:guid:" + guidFactory.addKey(ref));
+      IdType idType = new IdType("DocumentReference", "urn:uuid:" + guidFactory.addKey(ref));
       ref.setId(idType);
       
       // Add the patient 
