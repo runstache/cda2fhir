@@ -54,6 +54,38 @@ public final class Constants {
   public static final String PROFILE_DAF_SUBSTANCE = "http://hl7.org/fhir/StructureDefinition/daf-substance";
   public static final String PROFILE_DAF_VITAL_SIGNS = "http://hl7.org/fhir/StructureDefinition/daf-vitalsigns";
 
+  // US CORE Profile URLs (based on FHIR DSTU3)
+  public static final String PROFILE_USCORE_ALLERGY_INTOLERANCE = "http://hl7.org/fhir/StructureDefinition/us-core-allergyintolerance";
+  public static final String PROFILE_USCORE_ALLERGY_LIST = "http://hl7.org/fhir/StructureDefinition/us-core-allergylist";
+  public static final String PROFILE_USCORE_CONDITION = "http://hl7.org/fhir/StructureDefinition/us-core-condition";
+  public static final String PROFILE_USCORE_DIAGNOSTIC_ORDER = "http://hl7.org/fhir/StructureDefinition/us-core-diagnosticorder";
+  public static final String PROFILE_USCORE_DIAGNOSTIC_REPORT = "http://hl7.org/fhir/StructureDefinition/us-core-diagnosticreport";
+  public static final String PROFILE_USCORE_ENCOUNTER = "http://hl7.org/fhir/StructureDefinition/us-core-encounter";
+  public static final String PROFILE_USCORE_ENCOUNTER_LIST = "http://hl7.org/fhir/StructureDefinition/us-core-encounterlist";
+  public static final String PROFILE_USCORE_FAMILY_MEMBER_HISTORY = "http://hl7.org/fhir/StructureDefinition/us-core-familymemberhistory";
+  public static final String PROFILE_USCORE_IMMUNIZATION = "http://hl7.org/fhir/StructureDefinition/us-core-immunization";
+  public static final String PROFILE_USCORE_IMMUNIZATION_LIST = "http://hl7.org/fhir/StructureDefinition/us-core-immunizationlist";
+  public static final String PROFILE_USCORE_LOCATION = "http://hl7.org/fhir/StructureDefinition/us-core-location";
+  public static final String PROFILE_USCORE_MEDICATION = "http://hl7.org/fhir/StructureDefinition/us-core-medication";
+  public static final String PROFILE_USCORE_MEDICATION_ADMINISTRATION = "http://hl7.org/fhir/StructureDefinition/us-core-medicationadministration";
+  public static final String PROFILE_USCORE_MEDICATION_DISPENSE = "http://hl7.org/fhir/StructureDefinition/us-core-medicationdispense";
+  public static final String PROFILE_USCORE_MEDICATION_LIST = "http://hl7.org/fhir/StructureDefinition/us-core-medicationlist";
+  public static final String PROFILE_USCORE_MEDICATION_ORDER = "http://hl7.org/fhir/StructureDefinition/us-core-medicationorder";
+  public static final String PROFILE_USCORE_MEDICATION_STATEMENT = "http://hl7.org/fhir/StructureDefinition/us-core-medicationstatement";
+  public static final String PROFILE_USCORE_ORGANIZATION = "http://hl7.org/fhir/StructureDefinition/us-core-organization";
+  public static final String PROFILE_USCORE_PATIENT = "http://hl7.org/fhir/StructureDefinition/us-core-patient";
+  public static final String PROFILE_USCORE_PRACTITIONER = "http://hl7.org/fhir/StructureDefinition/us-core-pract";
+  public static final String PROFILE_USCORE_PROBLEM_LIST = "http://hl7.org/fhir/StructureDefinition/us-core-problemlist";
+  public static final String PROFILE_USCORE_PROCEDURE = "http://hl7.org/fhir/StructureDefinition/us-core-procedure";
+  public static final String PROFILE_USCORE_PROCEDURE_LIST = "http://hl7.org/fhir/StructureDefinition/us-core-procedurelist";
+  public static final String PROFILE_USCORE_RELATED_PERSON = "http://hl7.org/fhir/StructureDefinition/us-core-relatedperson";
+  public static final String PROFILE_USCORE_RESULT_LIST = "http://hl7.org/fhir/StructureDefinition/us-core-resultlist";
+  public static final String PROFILE_USCORE_RESULT_OBS = "http://hl7.org/fhir/StructureDefinition/us-core-resultobs";
+  public static final String PROFILE_USCORE_SMOKING_STATUS = "http://hl7.org/fhir/StructureDefinition/us-core-smokingstatus";
+  public static final String PROFILE_USCORE_SPECIMEN = "http://hl7.org/fhir/StructureDefinition/us-core-spec";
+  public static final String PROFILE_USCORE_SUBSTANCE = "http://hl7.org/fhir/StructureDefinition/us-core-substance";
+  public static final String PROFILE_USCORE_VITAL_SIGNS = "http://hl7.org/fhir/StructureDefinition/us-core-vitalsigns";
+
   // Extension URLs
   public static final String URL_EXTENSION_BIRTHPLACE = "http://hl7.org/fhir/StructureDefinition/birthPlace";
   public static final String URL_EXTENSION_DATA_ABSENT_REASON = "http://hl7.org/fhir/StructureDefinition/data-absent-reason";
@@ -61,7 +93,7 @@ public final class Constants {
   public static final String URL_EXTENSION_RACE = "http://hl7.org/fhir/StructureDefinition/us-core-race";
   public static final String URL_EXTENSION_RELIGION = "http://hl7.org/fhir/StructureDefinition/us-core-religion";
 
-  //Code Systems STU3
+  // Code Systems STU3
   public static final String ENCOUNTER_CLASS_SYSTEM = "http://terminology.hl7.org/CodeSystem/v3-ActCode";
   public static final String MARITAL_STATUS_SYSTEM = "http://terminology.hl7.org/CodeSystem/v3-MaritalStatus";
   public static final String PARTICIPANT_TYPE_SYSTEM = "http://hl7.org/fhir/v3/ParticipationType";
@@ -70,7 +102,7 @@ public final class Constants {
   public static final String IMMUNIZATION_PROVIDER_ROLE_SYSTEM = "http://hl7.org/fhir/v2/0443";
   public static final String CARETEAM_CATEGORY_SYSTEM = "http://hl7.org/fhir/care-team-category";
 
-  //Resource Default System Identifiers
+  // Resource Default System Identifiers
   public static final String CARETEAM_IDENTIFIER_SYSTEM = "CDA.CARETEAM.OID";
   public static final String PRACTITIONER_ROLE_IDENTIFIER_SYSYETM = "PRACTITIONER.ROLE.OID";
   public static final String DOCUMENTREF_IDENTIFIER_SYSTEM = "CDA.DOCUMENT.OID";

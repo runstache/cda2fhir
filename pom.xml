@@ -5,7 +5,7 @@
 
   <groupId>tr.com.srdc</groupId>
   <artifactId>cda2fhir</artifactId>
-  <version>1.10.2</version>
+  <version>1.11.1</version>
   <build>
     <plugins>
       <plugin>

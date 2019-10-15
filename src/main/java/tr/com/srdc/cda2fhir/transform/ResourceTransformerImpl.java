@@ -23,6 +23,7 @@ import java.io.ByteArrayOutputStream;
  */
 
 import java.io.Serializable;
+import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.List;
 import java.util.Optional;
@@ -107,7 +108,6 @@ import org.hl7.fhir.dstu3.model.Reference;
 import org.hl7.fhir.dstu3.model.Substance;
 import org.hl7.fhir.dstu3.model.Timing;
 import org.hl7.fhir.exceptions.FHIRException;
-
 import org.openhealthtools.mdht.uml.cda.AssignedAuthor;
 import org.openhealthtools.mdht.uml.cda.AssignedEntity;
 import org.openhealthtools.mdht.uml.cda.AssociatedEntity;
@@ -285,7 +285,7 @@ public class ResourceTransformerImpl implements IResourceTransformer, Serializab
 
     // meta.profile
     if (Config.isGenerateDafProfileMetadata()) {
-      fhirAllergyIntolerance.getMeta().addProfile(Constants.PROFILE_DAF_ALLERGY_INTOLERANCE);
+      fhirAllergyIntolerance.getMeta().addProfile(Constants.PROFILE_USCORE_ALLERGY_INTOLERANCE);
     }
       
     // id -> identifier
@@ -571,7 +571,7 @@ public class ResourceTransformerImpl implements IResourceTransformer, Serializab
 
     // meta.profile
     if (Config.isGenerateDafProfileMetadata()) {
-      fhirPractitioner.getMeta().addProfile(Constants.PROFILE_DAF_PRACTITIONER);
+      fhirPractitioner.getMeta().addProfile(Constants.PROFILE_USCORE_PRACTITIONER);
     }
 
     // id -> identifier
@@ -709,7 +709,7 @@ public class ResourceTransformerImpl implements IResourceTransformer, Serializab
 
     // meta.profile
     if (Config.isGenerateDafProfileMetadata()) {
-      fhirPractitioner.getMeta().addProfile(Constants.PROFILE_DAF_PRACTITIONER);
+      fhirPractitioner.getMeta().addProfile(Constants.PROFILE_USCORE_PRACTITIONER);
     }
 
     // id -> identifier
@@ -859,7 +859,7 @@ public class ResourceTransformerImpl implements IResourceTransformer, Serializab
 
     // meta.profile
     if (Config.isGenerateDafProfileMetadata()) {
-      fhirSubstance.getMeta().addProfile(Constants.PROFILE_DAF_SUBSTANCE);
+      fhirSubstance.getMeta().addProfile(Constants.PROFILE_USCORE_SUBSTANCE);
     }
 
     // code -> code
@@ -892,6 +892,24 @@ public class ResourceTransformerImpl implements IResourceTransformer, Serializab
     // id -> identifier
     if (cdaClinicalDocument.getId() != null && !cdaClinicalDocument.getId().isSetNullFlavor()) {
       fhirComp.setIdentifier(dtt.transformII2Identifier(cdaClinicalDocument.getId()));
+    }
+
+    /**
+     * Fix the composition resource to have 
+     * an identifier with a system/value 
+     * using the current date/time.
+     */
+    if (fhirComp.getIdentifier() != null) {
+      Identifier id = fhirComp.getIdentifier();
+      if (id.getSystem() == null) {
+        id.setSystem(id.getValue());
+        SimpleDateFormat sdt = new SimpleDateFormat("YYYYMMDDHHmmss");
+        try {
+          id.setValue(sdt.format(new Date()));
+        } catch (Exception ex) {
+          logger.warn("Could not Convert Date for Composition identifier.");          
+        }          
+      }
     }
 
     fhirComp.setId(new IdType("Composition", 
@@ -1148,7 +1166,7 @@ public class ResourceTransformerImpl implements IResourceTransformer, Serializab
 
     // meta.profile
     if (Config.isGenerateDafProfileMetadata()) {
-      fhirOrganization.getMeta().addProfile(Constants.PROFILE_DAF_ORGANIZATION);
+      fhirOrganization.getMeta().addProfile(Constants.PROFILE_USCORE_ORGANIZATION);
     }
 
     // id -> identifier
@@ -1216,7 +1234,7 @@ public class ResourceTransformerImpl implements IResourceTransformer, Serializab
     // NOTE: hospitalization.period not found. However, daf requires it being mapped
     // meta.profile
     if (Config.isGenerateDafProfileMetadata()) {  
-      fhirEncounter.getMeta().addProfile(Constants.PROFILE_DAF_ENCOUNTER);
+      fhirEncounter.getMeta().addProfile(Constants.PROFILE_USCORE_ENCOUNTER);
     }
 
     // patient
@@ -1405,7 +1423,7 @@ public class ResourceTransformerImpl implements IResourceTransformer, Serializab
 
     // meta.profile
     if (Config.isGenerateDafProfileMetadata()) {
-      fhirEncounter.getMeta().addProfile(Constants.PROFILE_DAF_ENCOUNTER);
+      fhirEncounter.getMeta().addProfile(Constants.PROFILE_USCORE_ENCOUNTER);
     }
 
     // patient
@@ -1910,7 +1928,7 @@ public class ResourceTransformerImpl implements IResourceTransformer, Serializab
 
     //meta.profile
     if (Config.isGenerateDafProfileMetadata()) {
-      fhirCondition.getMeta().addProfile(Constants.PROFILE_DAF_CONDITION);
+      fhirCondition.getMeta().addProfile(Constants.PROFILE_USCORE_CONDITION);
     }
 
     // id -> identifier
@@ -2077,7 +2095,7 @@ public class ResourceTransformerImpl implements IResourceTransformer, Serializab
 
     // meta.profile
     if (Config.isGenerateDafProfileMetadata()) {
-      fhirFmh.getMeta().addProfile(Constants.PROFILE_DAF_FAMILY_MEMBER_HISTORY);
+      fhirFmh.getMeta().addProfile(Constants.PROFILE_USCORE_FAMILY_MEMBER_HISTORY);
     }
 
     // patient
@@ -2401,7 +2419,7 @@ public class ResourceTransformerImpl implements IResourceTransformer, Serializab
 
     // meta.profile
     if (Config.isGenerateDafProfileMetadata()) {
-      fhirImmunization.getMeta().addProfile(Constants.PROFILE_DAF_IMMUNIZATION);
+      fhirImmunization.getMeta().addProfile(Constants.PROFILE_USCORE_IMMUNIZATION);
     }
 
     // patient
@@ -2675,7 +2693,7 @@ public class ResourceTransformerImpl implements IResourceTransformer, Serializab
 
     // meta.profile
     if (Config.isGenerateDafProfileMetadata()) {
-      fhirCond.getMeta().addProfile(Constants.PROFILE_DAF_CONDITION);
+      fhirCond.getMeta().addProfile(Constants.PROFILE_USCORE_CONDITION);
     }
 
     // id -> identifier
@@ -2826,7 +2844,7 @@ public class ResourceTransformerImpl implements IResourceTransformer, Serializab
     
     // meta.profile
     if (Config.isGenerateDafProfileMetadata()) {
-      fhirMedication.getMeta().addProfile(Constants.PROFILE_DAF_MEDICATION);
+      fhirMedication.getMeta().addProfile(Constants.PROFILE_USCORE_MEDICATION);
     }
 
     // manufacturedMaterial -> code and ingredient
@@ -2899,7 +2917,7 @@ public class ResourceTransformerImpl implements IResourceTransformer, Serializab
 
     // meta.profile
     if (Config.isGenerateDafProfileMetadata()) {
-      fhirMedSt.getMeta().addProfile(Constants.PROFILE_DAF_MEDICATION_STATEMENT);
+      fhirMedSt.getMeta().addProfile(Constants.PROFILE_USCORE_MEDICATION_STATEMENT);
     }
 
     // patient
@@ -3075,7 +3093,7 @@ public class ResourceTransformerImpl implements IResourceTransformer, Serializab
 
     // meta.profile
     if (Config.isGenerateDafProfileMetadata()) {
-      fhirMediDisp.getMeta().addProfile(Constants.PROFILE_DAF_MEDICATION_DISPENSE);
+      fhirMediDisp.getMeta().addProfile(Constants.PROFILE_USCORE_MEDICATION_DISPENSE);
     }
 
     // id -> identifier
@@ -3495,7 +3513,7 @@ public class ResourceTransformerImpl implements IResourceTransformer, Serializab
 
     // meta.profile
     if (Config.isGenerateDafProfileMetadata()) {
-      fhirOrganization.getMeta().addProfile(Constants.PROFILE_DAF_ORGANIZATION);
+      fhirOrganization.getMeta().addProfile(Constants.PROFILE_USCORE_ORGANIZATION);
     }
 
     // id -> identifier
@@ -3565,7 +3583,7 @@ public class ResourceTransformerImpl implements IResourceTransformer, Serializab
 
     // meta.profile
     if (Config.isGenerateDafProfileMetadata()) {
-      fhirLocation.getMeta().addProfile(Constants.PROFILE_DAF_LOCATION);
+      fhirLocation.getMeta().addProfile(Constants.PROFILE_USCORE_LOCATION);
     }
 
     // id -> identifier
@@ -3665,7 +3683,7 @@ public class ResourceTransformerImpl implements IResourceTransformer, Serializab
 
     // meta.profile
     if (Config.isGenerateDafProfileMetadata()) {
-      fhirPatient.getMeta().addProfile(Constants.PROFILE_DAF_PATIENT);
+      fhirPatient.getMeta().addProfile(Constants.PROFILE_USCORE_PATIENT);
     }
 
     // id -> identifier
@@ -3935,7 +3953,7 @@ public class ResourceTransformerImpl implements IResourceTransformer, Serializab
 
     // meta.profile
     if (Config.isGenerateDafProfileMetadata()) {
-      fhirCondition.getMeta().addProfile(Constants.PROFILE_DAF_CONDITION);
+      fhirCondition.getMeta().addProfile(Constants.PROFILE_USCORE_CONDITION);
     }
 
     // patient
@@ -4078,7 +4096,7 @@ public class ResourceTransformerImpl implements IResourceTransformer, Serializab
 
     // meta.profile
     if (Config.isGenerateDafProfileMetadata()) {
-      fhirProc.getMeta().addProfile(Constants.PROFILE_DAF_PROCEDURE);
+      fhirProc.getMeta().addProfile(Constants.PROFILE_USCORE_PROCEDURE);
     }
 
     // subject
@@ -4263,7 +4281,7 @@ public class ResourceTransformerImpl implements IResourceTransformer, Serializab
     if (Config.isGenerateDafProfileMetadata()) {
       for (BundleEntryComponent entry : fhirObservationBundle.getEntry()) {
         if (entry.getResource() instanceof Observation) {
-          (entry.getResource()).getMeta().addProfile(Constants.PROFILE_DAF_RESULT_OBS);
+          (entry.getResource()).getMeta().addProfile(Constants.PROFILE_USCORE_RESULT_OBS);
         }
       }
     }
@@ -4285,7 +4303,7 @@ public class ResourceTransformerImpl implements IResourceTransformer, Serializab
 
     // meta.profile
     if (Config.isGenerateDafProfileMetadata()) {
-      fhirDiagReport.getMeta().addProfile(Constants.PROFILE_DAF_DIAGNOSTIC_REPORT);
+      fhirDiagReport.getMeta().addProfile(Constants.PROFILE_USCORE_DIAGNOSTIC_REPORT);
     }
 
     // subject
@@ -4403,7 +4421,7 @@ public class ResourceTransformerImpl implements IResourceTransformer, Serializab
 
       // meta.profile
       if (Config.isGenerateDafProfileMetadata()) {
-        fhirPerformerDataAbsent.getMeta().addProfile(Constants.PROFILE_DAF_PRACTITIONER);
+        fhirPerformerDataAbsent.getMeta().addProfile(Constants.PROFILE_USCORE_PRACTITIONER);
       }
 
       // setting dataAbsentReason extension
@@ -4575,7 +4593,7 @@ public class ResourceTransformerImpl implements IResourceTransformer, Serializab
     if (Config.isGenerateDafProfileMetadata()) {
       for (BundleEntryComponent entry : fhirObservationBundle.getEntry()) {
         if (entry.getResource() instanceof Observation) {
-          (entry.getResource()).getMeta().addProfile(Constants.PROFILE_DAF_VITAL_SIGNS);
+          (entry.getResource()).getMeta().addProfile(Constants.PROFILE_USCORE_VITAL_SIGNS);
         }
       }
     }
@@ -4773,6 +4791,7 @@ public class ResourceTransformerImpl implements IResourceTransformer, Serializab
     return bundle;
   }
 
+
   /**
    * Returns if an Entry is present in a Given FHIR bundle.
    * @param bundle Bundle to search
@@ -4786,5 +4805,7 @@ public class ResourceTransformerImpl implements IResourceTransformer, Serializab
       return bundle.getEntry().stream().anyMatch(c -> c.getFullUrl().equalsIgnoreCase(url));
     }
   } 
+
+
 
 }
