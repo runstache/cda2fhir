@@ -95,14 +95,6 @@
       <version>1.1.7</version>
     </dependency>
   </dependencies>
-
-  <distributionManagement>
-    <repository>
-      <id>deRepo</id>
-      <url>https://artifactory.upmc.com/artifactory/dataengineering-maven-local</url>
-    </repository>
-  </distributionManagement>
-
   <reporting>
     <plugins>
       <plugin>
