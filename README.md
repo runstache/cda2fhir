@@ -33,6 +33,10 @@ All the mappings implemented between CDA artifacts and FHIR resources, data type
 
 This fork has been updated to support HL7 FHIR STU3 Resources and primarily the [US Core Profiles](http://hl7.org/fhir/us/core/) for validation.  All testing has been accomplished primarily with Continuity of Care documents rather than any other specific template of C-CDA artifacts.  As such, the following new additions have been added to enhance the information received from the CCD artifacts.
 
+### Composition
+
+The Composition Resource Transformation has been updated to utilize the current Date/Time as the Identifier Value when only a System is present in the C-CDA document.
+
 ### Episode of Care
 
 The Episode of Care resource is now being created from CCD documents that contain an Encompassing Encounter data element. This item combined with the Service Event element have been combined to define an Episode of Care FHIR Resource.  All Encounters contained within the CCD document are then attached to this Episode of Care.

@@ -1,7 +1,10 @@
 package tr.com.srdc.cda2fhir;
 
+import static org.junit.Assert.assertNotNull;
+
 import ca.uhn.fhir.context.FhirContext;
 import ca.uhn.fhir.parser.IParser;
+
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileWriter;
@@ -1036,6 +1039,38 @@ public class ResourceTransformerTest {
       }
     }
     appendToResultFile(endOfTestMsg);
+  }
+
+  /**
+   * Validate that the Composition Resource is created 
+   * with a System & Value for the Identifier.
+   */
+  @Test
+  public void testCompositionHasIdentifier() {
+    // read the input test file
+    ContinuityOfCareDocument ccdItem = null;
+    try {
+      FileInputStream fis = 
+          new FileInputStream("src/test/resources/SampleCDADocument_noExtension.xml");      
+      ccdItem =
+          (ContinuityOfCareDocument) CDAUtil.loadAs(
+          fis, 
+          ConsolPackage.eINSTANCE.getContinuityOfCareDocument());
+    } catch (Exception ex) {
+      ex.printStackTrace();
+    }
+
+    Bundle bundle = rt.transformClinicalDocument2Composition(ccdItem);
+    assertNotNull(bundle);
+    for (BundleEntryComponent entry : bundle.getEntry()) {
+      if (entry.getResource() instanceof Composition) {
+        Composition comp = (Composition)entry.getResource();
+        //Check the Identifiers
+        assertNotNull(comp.getIdentifier().getSystem());
+        assertNotNull(comp.getIdentifier().getValue());
+      }
+    }
+
   }
 
   private void appendToResultFile(Object param) {
