@@ -4690,6 +4690,25 @@ public class ResourceTransformerImpl implements IResourceTransformer, Serializab
         ref.setMasterIdentifier(id);      
       }
 
+      /**
+     * Fix the Document Reference resource to have 
+     * an identifier with a system/value 
+     * using the current date/time.
+     */
+      if (ref.getMasterIdentifier() != null) {
+        Identifier id = ref.getMasterIdentifier();
+        if (id.getSystem() == null) {
+          id.setSystem(id.getValue());
+          SimpleDateFormat sdt = new SimpleDateFormat("YYYYMMDDHHmmss");
+          try {
+            id.setValue(sdt.format(new Date()));
+          } catch (Exception ex) {
+            logger.warn("Could not Convert Date for Composition identifier.");          
+          }  
+        }
+      }
+    
+
       // Set the Id
       IdType idType = new IdType("DocumentReference", "urn:uuid:" + guidFactory.addKey(ref));
       ref.setId(idType);
